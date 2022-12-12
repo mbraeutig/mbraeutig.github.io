@@ -1,0 +1,24 @@
+<html> 
+<head>
+    <title>Our Daily Action</title> 
+    <style>
+    </style>
+</head>
+<body>
+    <div id="lbl"></div>
+</body>
+
+<script>
+    var url = 'https://actionforhappiness.org/sites/default/files/styles/daily_message_convo_overlay/public/';
+    
+    var today = new Date();
+    var year = today.getFullYear();
+    var month = today.getUTCMonth() + 1;
+    var day = today.getUTCDate();
+
+    url = url + 'AFH_ACTION_' + year + '_' + month + '_DEC_' + day + '.png'
+
+    document.getElementById('lbl').innerHTML = 
+    `<img class="dailyaction" src=${url}>`;
+</script> 
+</html>
