@@ -12,11 +12,14 @@
     var url = 'https://actionforhappiness.org/sites/default/files/styles/daily_message_convo_overlay/public/';
     
     var today = new Date();
-    var year = today.getFullYear();
-    var month = today.getUTCMonth() + 1;
-    var day = today.getUTCDate();
+    var fullYear = today.getFullYear();
+    var UTCMonth = today.getUTCMonth() + 1;
+    var UTCDay = today.getUTCDate();
 
-    url = url + 'AFH_ACTION_' + year + '_' + month + '_DEC_' + day + '.png'
+    const months = ["JAN","FEB","MAR","APR","MAI","JUN","JUL","AUGUST","SEPT","OCT","NOV","DEC"];
+    let month = months[today.getUTCMonth()];
+
+    url = url + 'AFH_ACTION_' + fullYear + '_' + UTCMonth + '_' + month + '_' + UTCDay + '.png'
 
     document.getElementById('lbl').innerHTML = 
     `<img class="dailyaction" src=${url}>`;
