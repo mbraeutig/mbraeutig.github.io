@@ -2,9 +2,9 @@
 <head>
     <title>Our Daily Action</title> 
     <style>
-        #lbl {  
-            height: 560px;
+        div {
             width: 560px;
+            padding: 8px;
         }
     </style>
 </head>
@@ -26,6 +26,6 @@
     url = url + 'AFH_ACTION_' + fullYear + '_' + UTCMonth + '_' + month + '_' + UTCDay + '.png'
 
     document.getElementById('lbl').innerHTML = 
-    `<img class="w3-image" src=${url}>`;
+    `<img src=${url}>`;
 </script> 
 </html>
