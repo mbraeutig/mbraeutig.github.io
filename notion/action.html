@@ -2,14 +2,11 @@
 <head>
     <title>Our Daily Action</title> 
     <style>
-        #lbl {  
-            height: 560px;
-            width: 560px;
-        }
     </style>
 </head>
 <body>
     <div id="lbl"></div>
+    <button type="submit" onClick="refreshPage()">Refresh Button</button>
 </body>
 
 <script>
@@ -26,6 +23,11 @@
     url = url + 'AFH_ACTION_' + fullYear + '_' + UTCMonth + '_' + month + '_' + UTCDay + '.png'
 
     document.getElementById('lbl').innerHTML = 
-    `<img class="w3-image" src=${url}>`;
+    `<img src=${url} alt="" width="200" height="200">`;
+
+    function refreshPage(){
+        window.location.reload();
+    }
 </script> 
 </html>
+
