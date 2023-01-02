@@ -9,7 +9,7 @@
 </body>
 
 <script>
-    var url = 'https://actionforhappiness.org/sites/default/files/styles/daily_message_convo_overlay/public/';
+    var url = 'https://www.actionforhappiness.de/wp-content/uploads/2022/'; // '01/AFH_ACTION_2022_02-DE.jpg';
     
     var today = new Date();
     var fullYear = today.getFullYear();
@@ -19,7 +19,7 @@
     const months = ["JAN","FEB","MAR","APR","MAI","JUN","JUL","AUGUST","SEPT","OCT","NOV","DEC"];
     let month = months[today.getUTCMonth()];
 
-    url = url + 'AFH_ACTION_' + fullYear + '_' + UTCMonth + '_' + month + '_' + UTCDay + '.png'
+    url = url + '/01/AFH_ACTION_2022_02-DE.jpg'
 
     document.getElementById('lbl').innerHTML = 
     `<img src=${url} width="362" height="362">`;
