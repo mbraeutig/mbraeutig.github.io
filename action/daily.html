@@ -18,14 +18,14 @@
 
     const months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
     let month = months[today.getUTCMonth()];
-    console.log('month: ' + month);
+    // console.log('month: ' + month);
     
     const days = ["00", "01","02","03","04","05","06","07","08","09"];
     let day = days[today.getUTCDate()] ? days[today.getUTCDate()] : today.getUTCDate();
-    console.log('day: ' + day);
+    // console.log('day: ' + day);
 
     url = url + month + '/AFH_ACTION_2022_' + day + '-DE.jpg'
-    console.log('url: ' + url);
+    // console.log('url: ' + url);
 
     document.getElementById('lbl').innerHTML = `<img src=${url} width="320" height="320">`;
 </script> 
