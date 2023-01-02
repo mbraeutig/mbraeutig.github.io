@@ -16,10 +16,10 @@
     var UTCMonth = today.getUTCMonth() + 1;
     var UTCDay = today.getUTCDate();
 
-    const months = ["JAN","FEB","MAR","APR","MAI","JUN","JUL","AUGUST","SEPT","OCT","NOV","DEC"];
+    const months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
     let month = months[today.getUTCMonth()];
 
-    url = url + '01/AFH_ACTION_2022_02-DE.jpg'
+    url = url + month + '/AFH_ACTION_2022_02-DE.jpg'
 
     document.getElementById('lbl').innerHTML = `<img src=${url}>`;
     //`<img src=${url} width="362" height="362">`;
