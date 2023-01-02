@@ -18,8 +18,11 @@
 
     const months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
     let month = months[today.getUTCMonth()];
+    
+    const days = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+    let days = months[today.getUTCMonth()] 
 
-    url = url + month + '/AFH_ACTION_2022_02-DE.jpg'
+    url = url + month + '/AFH_ACTION_2022_' + days + '-DE.jpg'
 
     document.getElementById('lbl').innerHTML = `<img src=${url} width="256" height="256">`;
 </script> 
