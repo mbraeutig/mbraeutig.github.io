@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Transform your training into a conscious ritual. Open a circle with intention, close it with reflection.">
+    <meta name="theme-color" content="#4F5D75">
+    <title>円相 Enso - The Training Circle</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.svg">
+
+    <!-- Google Fonts: Distinctive Japanese-inspired typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Cormorant+Garamond:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ========================================
+           CSS VARIABLES - Design System
+        ======================================== */
+        :root {
+            /* Colors - Zen Palette */
+            --color-bg: #F5F2EB;
+            --color-surface: #FFFFFF;
+            --color-text: #1A1A1A;
+            --color-text-secondary: #6B6B6B;
+            --color-accent: #4F5D75;
+            --color-accent-hover: #3D4A5C;
+            --color-enso: #8B8B8B;
+            --color-border: #E0DDD5;
+            
+            /* Typography */
+            --font-primary: 'Cormorant Garamond', serif;
+            --font-japanese: 'Noto Serif JP', serif;
+            
+            /* Spacing */
+            --space-xs: 0.5rem;
+            --space-s: 1rem;
+            --space-m: 1.5rem;
+            --space-l: 2rem;
+            --space-xl: 3rem;
+            
+            /* Border Radius */
+            --radius-s: 8px;
+            --radius-m: 12px;
+            --radius-full: 9999px;
+            
+            /* Transitions */
+            --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* ========================================
+           RESET & BASE STYLES
+        ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            font-size: 16px;
+        }
+        
+        body {
+            font-family: var(--font-primary);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+        
+        /* ========================================
+           LAYOUT - App Container
+        ======================================== */
+        .app-container {
+            max-width: 400px;
+            min-height: 100vh;
+            margin: 0 auto;
+            background: var(--color-bg);
+            padding: var(--space-l);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .screen {
+            display: none;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity var(--transition-smooth), transform var(--transition-smooth);
+        }
+        
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* ========================================
+           ENSO CIRCLE - The Core Visual
+        ======================================== */
+        .enso-container {
+            width: 160px;
+            height: 160px;
+            margin: var(--space-xl) 0;
+            position: relative;
+        }
+        
+        .enso-circle {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        /* Breathing animation for open circle */
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        
+        .enso-circle.breathing {
+            animation: breathe 3s ease-in-out infinite;
+        }
+        
+        /* Pulse on interaction */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        
+        .enso-circle.pulse {
+            animation: pulse 0.6s ease-out;
+        }
+        
+        /* SVG Circle styles */
+        .enso-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
+        }
+        
+        /* ========================================
+           TYPOGRAPHY
+        ======================================== */
+        .title {
+            font-family: var(--font-japanese);
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            color: var(--color-text);
+            margin-bottom: var(--space-s);
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-family: var(--font-primary);
+            font-size: 1.1rem;
+            font-weight: 300;
+            color: var(--color-text-secondary);
+            text-align: center;
+            margin-bottom: var(--space-xl);
+            letter-spacing: 0.02em;
+        }
+        
+        .prompt {
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: var(--color-text);
+            text-align: center;
+            margin-bottom: var(--space-l);
+            letter-spacing: 0.01em;
+        }
+        
+        /* ========================================
+           BUTTONS - Activity & Intention
+        ======================================== */
+        .button-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-s);
+            margin-bottom: var(--space-l);
+        }
+        
+        .activity-button,
+        .intention-button {
+            width: 100%;
+            padding: var(--space-m);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-m);
+            font-family: var(--font-primary);
+            font-size: 1.1rem;
+            color: var(--color-text);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: var(--space-s);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-button::before,
+        .intention-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(79, 93, 117, 0.05));
+            transition: width var(--transition-smooth);
+        }
+        
+        .activity-button:hover::before,
+        .intention-button:hover::before {
+            width: 100%;
+        }
+        
+        .activity-button:hover,
+        .intention-button:hover {
+            border-color: var(--color-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 93, 117, 0.1);
+        }
+        
+        .activity-button:active,
+        .intention-button:active {
+            transform: translateY(0);
+        }
+
+        .activity-button:focus,
+        .intention-button:focus {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+
+        .activity-icon {
+            font-size: 1.5rem;
+        }
+        
+        /* ========================================
+           PRIMARY ACTION BUTTON
+        ======================================== */
+        .primary-button {
+            width: 100%;
+            padding: var(--space-m);
+            background: var(--color-accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            font-family: var(--font-primary);
+            font-size: 1.2rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 12px rgba(79, 93, 117, 0.2);
+        }
+        
+        .primary-button:hover {
+            background: var(--color-accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 93, 117, 0.3);
+        }
+        
+        .primary-button:active {
+            transform: translateY(0);
+        }
+
+        .primary-button:focus {
+            outline: 2px solid white;
+            outline-offset: 2px;
+        }
+
+        /* ========================================
+           REFLECTION TEXT AREA
+        ======================================== */
+        .reflection-container {
+            width: 100%;
+            margin-bottom: var(--space-l);
+        }
+        
+        .reflection-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: var(--space-m);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-m);
+            font-family: var(--font-primary);
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--color-text);
+            resize: vertical;
+            transition: border-color var(--transition-fast);
+        }
+        
+        .reflection-textarea:focus {
+            outline: none;
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 3px rgba(79, 93, 117, 0.1);
+        }
+        
+        .reflection-textarea::placeholder {
+            color: var(--color-text-secondary);
+            opacity: 0.6;
+        }
+        
+        /* ========================================
+           NOTIFICATION - Success Feedback
+        ======================================== */
+        .notification {
+            position: fixed;
+            top: var(--space-l);
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-m);
+            padding: var(--space-m);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            transition: all var(--transition-smooth);
+            z-index: 1000;
+            max-width: 90%;
+        }
+        
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .notification-text {
+            font-size: 0.95rem;
+            color: var(--color-text);
+            text-align: center;
+        }
+        
+        /* ========================================
+           RESPONSIVE - Mobile Adjustments
+        ======================================== */
+        @media (max-width: 400px) {
+            .app-container {
+                padding: var(--space-m);
+            }
+            
+            .enso-container {
+                width: 140px;
+                height: 140px;
+            }
+            
+            .title {
+                font-size: 1.75rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+        }
+        
+        /* ========================================
+           ACCESSIBILITY
+        ======================================== */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- ========================================
+             SCREEN 1: Activity Selection
+        ======================================== -->
+        <div class="screen active" id="screen-select">
+            <h1 class="title">円相</h1>
+            <p class="subtitle">Enso - The Training Circle</p>
+            
+            <div class="enso-container">
+                <div class="enso-circle" id="enso-open">
+                    <svg class="enso-svg" viewBox="0 0 200 200">
+                        <!-- Open Enso Circle (incomplete) -->
+                        <path 
+                            d="M 30,100 A 70,70 0 1,1 170,100" 
+                            fill="none" 
+                            stroke="var(--color-enso)" 
+                            stroke-width="3" 
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </div>
+            </div>
+            
+            <p class="prompt">Welcher Kreis heute?</p>
+            
+            <div class="button-group">
+                <button class="activity-button" data-activity="ride">
+                    <span class="activity-icon">🚴</span>
+                    <span>Ride</span>
+                </button>
+                <button class="activity-button" data-activity="climb">
+                    <span class="activity-icon">🧗</span>
+                    <span>Climb</span>
+                </button>
+                <button class="activity-button" data-activity="practice">
+                    <span class="activity-icon">🧘</span>
+                    <span>Practice</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- ========================================
+             SCREEN 2: Intention Setting
+        ======================================== -->
+        <div class="screen" id="screen-intention">
+            <div class="enso-container">
+                <div class="enso-circle breathing" id="enso-breathing">
+                    <svg class="enso-svg" viewBox="0 0 200 200">
+                        <!-- Open Enso Circle (breathing) -->
+                        <path 
+                            d="M 30,100 A 70,70 0 1,1 170,100" 
+                            fill="none" 
+                            stroke="var(--color-enso)" 
+                            stroke-width="3" 
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                </div>
+            </div>
+            
+            <p class="prompt">Was ist deine Intention?</p>
+            
+            <div class="button-group">
+                <button class="intention-button" data-intention="strength">
+                    Kraft aufbauen
+                </button>
+                <button class="intention-button" data-intention="limits">
+                    Grenzen testen
+                </button>
+                <button class="intention-button" data-intention="flow">
+                    Im Flow sein
+                </button>
+                <button class="intention-button" data-intention="enjoy">
+                    Einfach genießen
+                </button>
+            </div>
+            
+            <button class="primary-button" id="btn-open-circle">
+                Kreis öffnen
+            </button>
+        </div>
+        
+        <!-- ========================================
+             SCREEN 3: Reflection
+        ======================================== -->
+        <div class="screen" id="screen-reflection">
+            <div class="enso-container">
+                <div class="enso-circle" id="enso-closed">
+                    <svg class="enso-svg" viewBox="0 0 200 200">
+                        <!-- Closed Enso Circle (complete) -->
+                        <circle 
+                            cx="100" 
+                            cy="100" 
+                            r="70" 
+                            fill="none" 
+                            stroke="var(--color-enso)" 
+                            stroke-width="3"
+                        />
+                    </svg>
+                </div>
+            </div>
+            
+            <p class="prompt">Wie war dein Kreis heute?</p>
+            
+            <div class="reflection-container">
+                <textarea 
+                    class="reflection-textarea" 
+                    id="reflection-text" 
+                    placeholder="1-2 Sätze über deine Erfahrung...
+Was hast du gelernt?
+Wie hast du dich gefühlt?"
+                ></textarea>
+            </div>
+            
+            <button class="primary-button" id="btn-close-circle">
+                Kreis schließen
+            </button>
+        </div>
+        
+        <!-- Notification Toast -->
+        <div class="notification" id="notification" role="alert" aria-live="polite">
+            <p class="notification-text" id="notification-text"></p>
+        </div>
+        
+    </div>
+    
+    <script>
+        /* ========================================
+           APP STATE MANAGEMENT
+        ======================================== */
+        const AppState = {
+            currentScreen: 'screen-select',
+            selectedActivity: null,
+            selectedIntention: null,
+            circles: [] // Would be persisted to localStorage
+        };
+        
+        /* ========================================
+           DOM ELEMENTS
+        ======================================== */
+        const screens = {
+            select: document.getElementById('screen-select'),
+            intention: document.getElementById('screen-intention'),
+            reflection: document.getElementById('screen-reflection')
+        };
+        
+        const elements = {
+            activityButtons: document.querySelectorAll('.activity-button'),
+            intentionButtons: document.querySelectorAll('.intention-button'),
+            btnOpenCircle: document.getElementById('btn-open-circle'),
+            btnCloseCircle: document.getElementById('btn-close-circle'),
+            reflectionText: document.getElementById('reflection-text'),
+            notification: document.getElementById('notification'),
+            notificationText: document.getElementById('notification-text'),
+            ensoOpen: document.getElementById('enso-open'),
+            ensoClosed: document.getElementById('enso-closed')
+        };
+        
+        /* ========================================
+           SCREEN TRANSITION
+        ======================================== */
+        function showScreen(screenId) {
+            // Hide all screens
+            Object.values(screens).forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show target screen
+            setTimeout(() => {
+                screens[screenId].classList.add('active');
+                AppState.currentScreen = `screen-${screenId}`;
+            }, 100);
+        }
+        
+        /* ========================================
+           NOTIFICATION SYSTEM
+        ======================================== */
+        function showNotification(message, duration = 2000) {
+            elements.notificationText.textContent = message;
+            elements.notification.classList.add('show');
+            
+            setTimeout(() => {
+                elements.notification.classList.remove('show');
+            }, duration);
+        }
+        
+        /* ========================================
+           ENSO PULSE ANIMATION
+        ======================================== */
+        function pulseEnso(element) {
+            element.classList.add('pulse');
+            setTimeout(() => {
+                element.classList.remove('pulse');
+            }, 600);
+        }
+        
+        /* ========================================
+           EVENT HANDLERS - Activity Selection
+        ======================================== */
+        elements.activityButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const activity = button.dataset.activity;
+                AppState.selectedActivity = activity;
+                
+                // Visual feedback
+                pulseEnso(elements.ensoOpen);
+                
+                // Transition to intention screen
+                setTimeout(() => {
+                    showScreen('intention');
+                }, 400);
+            });
+        });
+        
+        /* ========================================
+           EVENT HANDLERS - Intention Selection
+        ======================================== */
+        let selectedIntentionButton = null;
+        
+        elements.intentionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Deselect previous
+                if (selectedIntentionButton) {
+                    selectedIntentionButton.style.borderColor = 'var(--color-border)';
+                }
+                
+                // Select current
+                const intention = button.dataset.intention;
+                AppState.selectedIntention = intention;
+                button.style.borderColor = 'var(--color-accent)';
+                selectedIntentionButton = button;
+            });
+        });
+        
+        /* ========================================
+           EVENT HANDLERS - Open Circle
+        ======================================== */
+        elements.btnOpenCircle.addEventListener('click', () => {
+            if (!AppState.selectedIntention) {
+                showNotification('Bitte wähle eine Intention');
+                return;
+            }
+            
+            // Create circle object
+            const circle = {
+                id: Date.now(),
+                activity: AppState.selectedActivity,
+                intention: AppState.selectedIntention,
+                date: new Date(),
+                closed: false
+            };
+            
+            // Save to localStorage
+            AppState.circles.push(circle);
+            saveCircles();
+
+            // Show feedback
+            showNotification('Kreis geöffnet. Viel Erfolg! 🎯', 2500);
+            
+            // Simulate: App minimizes, user goes to train
+            // In real app, this would return to home screen
+            setTimeout(() => {
+                showScreen('reflection');
+                // Reset reflection textarea
+                elements.reflectionText.value = '';
+            }, 2500);
+        });
+        
+        /* ========================================
+           EVENT HANDLERS - Close Circle
+        ======================================== */
+        elements.btnCloseCircle.addEventListener('click', () => {
+            const reflection = elements.reflectionText.value.trim();
+            
+            if (!reflection) {
+                showNotification('Bitte teile deine Gedanken');
+                return;
+            }
+            
+            // Update last circle
+            const lastCircle = AppState.circles[AppState.circles.length - 1];
+            if (lastCircle && !lastCircle.closed) {
+                lastCircle.reflection = reflection;
+                lastCircle.closed = true;
+                saveCircles();
+            }
+
+            // Visual feedback
+            pulseEnso(elements.ensoClosed);
+            showNotification('Kreis geschlossen ⭕', 2000);
+            
+            // Return to start
+            setTimeout(() => {
+                showScreen('select');
+                // Reset state
+                AppState.selectedActivity = null;
+                AppState.selectedIntention = null;
+                if (selectedIntentionButton) {
+                    selectedIntentionButton.style.borderColor = 'var(--color-border)';
+                    selectedIntentionButton = null;
+                }
+            }, 2000);
+        });
+        
+        /* ========================================
+           LOAD SAVED CIRCLES (from localStorage)
+        ======================================== */
+        function loadCircles() {
+            const saved = localStorage.getItem('enso-circles');
+            if (saved) {
+                try {
+                    // Parse and restore Date objects
+                    AppState.circles = JSON.parse(saved).map(c => ({
+                        ...c,
+                        date: new Date(c.date)
+                    }));
+
+                    // Check for open (unclosed) circle and restore state
+                    const openCircle = AppState.circles.find(c => !c.closed);
+                    if (openCircle) {
+                        AppState.selectedActivity = openCircle.activity;
+                        AppState.selectedIntention = openCircle.intention;
+                        // Navigate to reflection screen after DOM is ready
+                        setTimeout(() => showScreen('reflection'), 100);
+                    }
+                } catch (e) {
+                    console.error('Error loading circles:', e);
+                    AppState.circles = [];
+                }
+            }
+        }
+        
+        /* ========================================
+           SAVE CIRCLES (to localStorage)
+        ======================================== */
+        function saveCircles() {
+            try {
+                localStorage.setItem('enso-circles', JSON.stringify(AppState.circles));
+            } catch (e) {
+                console.error('Error saving circles:', e);
+            }
+        }
+        
+        /* ========================================
+           INITIALIZATION
+        ======================================== */
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCircles();
+            console.log('円相 Enso initialized');
+            console.log('Loaded circles:', AppState.circles.length);
+        });
+
+        // Save circles when page unloads
+        window.addEventListener('beforeunload', () => {
+            saveCircles();
+        });
+
+        /* ========================================
+           SERVICE WORKER REGISTRATION
+        ======================================== */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('Enso: Service Worker registered');
+                    })
+                    .catch((error) => {
+                        console.log('Enso: Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- Background -->
+  <rect width="192" height="192" fill="#F5F2EB"/>
+
+  <!-- Enso Circle (open/incomplete) -->
+  <path
+    d="M 40,96 A 56,56 0 1,1 152,96"
+    fill="none"
+    stroke="#4F5D75"
+    stroke-width="6"
+    stroke-linecap="round"
+  />
+</svg>

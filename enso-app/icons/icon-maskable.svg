@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background (larger safe zone for maskable icons) -->
+  <rect width="512" height="512" fill="#F5F2EB"/>
+
+  <!-- Enso Circle (centered with safe zone padding) -->
+  <path
+    d="M 156,256 A 100,100 0 1,1 356,256"
+    fill="none"
+    stroke="#4F5D75"
+    stroke-width="10"
+    stroke-linecap="round"
+  />
+</svg>

@@ -1,0 +1,32 @@
+{
+  "name": "円相 Enso - The Training Circle",
+  "short_name": "Enso",
+  "description": "Transform your training into a conscious ritual. Open a circle with intention, close it with reflection.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F2EB",
+  "theme_color": "#4F5D75",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "lang": "de",
+  "categories": ["health", "fitness", "lifestyle"]
+}
