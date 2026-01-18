@@ -11,6 +11,12 @@
   "categories": ["health", "lifestyle", "productivity"],
   "icons": [
     {
+      "src": "icons/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icons/icon-72.png",
       "sizes": "72x72",
       "type": "image/png",
