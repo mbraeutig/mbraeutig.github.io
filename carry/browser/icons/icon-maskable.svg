@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full bleed; the content stays inside the central safe zone (radius 40 %) for Android masks. -->
+  <rect width="512" height="512" fill="#F6F4EF"/>
+  <text x="242" y="346" text-anchor="middle" font-family="'Shippori Mincho', Georgia, 'Times New Roman', serif" font-size="260" font-weight="500" fill="#22211F">C</text>
+  <circle cx="326" cy="256" r="22" fill="#2F4A7A"/>
+</svg>
