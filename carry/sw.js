@@ -51,10 +51,30 @@ async function cacheFirst(event, request) {
 async function store(request, response) {
   // Opaque: cross-origin responses without CORS; still worth keeping for offline.
   if (!response.ok && response.type !== 'opaque') return;
-  const copy = response.clone();
+  const copy = response.clone(); // now, before the page reads the body
   const cache = await caches.open(CACHE);
-  await cache.put(request, copy.clone());
-  if (request.mode === 'navigate') await removeOldBuildFiles(cache, await copy.text());
+  if (request.mode !== 'navigate') {
+    await cache.put(request, copy);
+    return;
+  }
+  // A new app page replaces the cached one only together with its build files. Otherwise a deploy
+  // that arrives in the background (slow network: the cached page answered) would leave a page
+  // whose scripts are missing – offline a blank screen. If a file fails, the old page stays.
+  const html = await copy.clone().text();
+  await cacheBuildFiles(cache, html, request.url);
+  await cache.put(request, copy);
+  await removeOldBuildFiles(cache, html);
+}
+
+// The hashed files the page references: scripts, styles and the fonts in its inline CSS.
+async function cacheBuildFiles(cache, html, pageUrl) {
+  for (const name of new Set(html.match(/[\w./-]+-[A-Z0-9]{8}\.(?:js|css|woff2)/g))) {
+    const url = new URL(name, pageUrl).href;
+    if (await cache.match(url)) continue;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    await cache.put(url, response);
+  }
 }
 
 // After a deploy the old hashed files are never requested again: drop the ones the freshly
