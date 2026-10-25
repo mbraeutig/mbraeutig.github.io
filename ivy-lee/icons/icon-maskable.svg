@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full bleed: the launcher cuts its own shape; the bars stay inside the safe circle (r = 205). -->
+  <rect width="512" height="512" fill="#1A1A1A"/>
+  <rect x="156" y="176" width="200" height="34" rx="17" fill="#4A90E2"/>
+  <rect x="156" y="239" width="200" height="34" rx="17" fill="#FAFAF8"/>
+  <rect x="156" y="302" width="134" height="34" rx="17" fill="#FAFAF8" fill-opacity="0.5"/>
+</svg>
