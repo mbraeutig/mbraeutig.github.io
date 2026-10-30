@@ -1,6 +1,6 @@
 // Fuda (札) – die App-Logik. Klassisches Skript ohne Module, damit die Demo auch als file:// läuft.
 // Aufbau:
-//    1. Einstellungen, Demo-Daten, Zustand      8. Begriff: Kopfzeile, Erwähnungen ohne Link
+//    1. Einstellungen, Demo-Daten, Zustand      8. Begriff: Kopfzeile, Kanten, Erwähnungen ohne Link
 //    2. Laden: Server oder Demo                  9. Treffer markieren
 //    3. MUSTER (Regeln von Hitokoto)            10. Omnibar: Tippen, Suchen, Anlegen, Vorschläge
 //    4. SUCHE (Suchformen von Hitokoto)         11. Auswahl, Bearbeiten, Papierkorb
@@ -19,7 +19,8 @@ const useBackend = location.protocol !== 'file:';
 const STATUS_BACKEND = '🟢 Lokale .md Dateien (Node.js)';
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-// Fallback-Demodaten (inkl. definierter Begriffe & virtuellem Begriff "Geschäftsartenbezugszahl")
+// Fallback-Demodaten (inkl. definierter Begriffe & virtuellem Begriff "Geschäftsartenbezugszahl";
+// Antragsteller und Mitantragsteller zeigen Kanten)
 let notes = [
   {
     filename: '20261023-073743-849m.md',
@@ -77,6 +78,18 @@ Der Antragsteller ist eine natürliche Person, die einen Kreditantrag stellt.
 Muss bei Antragstellung volljährig sein und einen Wohnsitz in Deutschland nachweisen.
 
 definition:: [[Antragsteller]]
+ist-ein:: [[Person]]
+teil-von:: [[Kreditantrag]]
+#domäne #kredit`
+  },
+  {
+    filename: '20261022-091500-m1ta.md',
+    lastModified: '2026-10-22T09:15:00.000Z',
+    raw: `# Mitantragsteller
+Zweite Person, die den Kreditantrag gemeinsam mit dem Antragsteller stellt.
+
+definition:: [[Mitantragsteller]]
+ist-ein:: [[Antragsteller]]
 #domäne #kredit`
   },
   {
@@ -891,6 +904,7 @@ function renderStream() {
     visibleLimit = PAGE_SIZE;
     selectedFilename = null;
     mentionsOpen = false;
+    edgesOpen = false;
   }
 
   // FALL A: Nur "?" eingegeben -> Zeige die Index-View (Arten, Begriffe, Virtuelle Begriffe, Relationen)
@@ -926,7 +940,7 @@ function renderStream() {
   const visible = filtered.slice(0, visibleLimit);
   const hiddenCount = filtered.length - visible.length;
 
-  // Bei ? [[Begriff]]: Kopfzeile und die Blöcke, die den Begriff nur im Text nennen (eingeklappt)
+  // Bei ? [[Begriff]]: Kopfzeile mit Kanten und die Blöcke, die den Begriff nur im Text nennen (eingeklappt)
   const linked = primaryDefNote ? [primaryDefNote, ...filtered] : filtered;
   const mentions = query?.form === 'link' ? unlinkedMentions(query, linked) : [];
 
@@ -941,7 +955,7 @@ function renderStream() {
   if (!selectable.includes(selectedFilename)) selectedFilename = null;
 
   if (query?.form === 'link') {
-    termHeaderEl.innerHTML = renderTermHeader(query, linked, mentions, definitions);
+    termHeaderEl.innerHTML = renderTermHeader(query, linked, mentions, definitions) + renderTermEdges(query.key, definitions);
     termHeaderEl.classList.remove('hidden');
   } else {
     termHeaderEl.classList.add('hidden');
@@ -1035,7 +1049,7 @@ function renderTargetGroups(list, query, definitions) {
 }
 
 // ============================================================================
-// 8. BEGRIFF: Kopfzeile und Erwähnungen ohne Link (bei ? [[Begriff]])
+// 8. BEGRIFF: Kopfzeile, Kanten und Erwähnungen ohne Link (bei ? [[Begriff]])
 // ============================================================================
 let mentionsOpen = false;
 
@@ -1105,6 +1119,73 @@ function toggleMentions(open = !mentionsOpen) {
   mentionsOpen = open;
   renderStream();
   if (open) document.getElementById('mentions')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+// Kanten zwischen Begriffen (Fuda): Tripel aus den geltenden Definitionen. Subjekt ist der definierte
+// Begriff, Prädikat und Objekt kommen aus den anderen Relationen desselben Blocks. Keine Kante ergeben:
+// frühere Definitionen, Blöcke ohne Definition, definition:: selbst, Relationen auf einen Begriff, den
+// derselbe Block definiert (Selbstbezug, Synonyme), doppelte Zeilen. Fuda folgt keinen Ketten.
+const EDGES_COLLAPSE = 10;            // ab mehr eingehenden Kanten eingeklappt
+const LOOSE_KEYS = ['zu', 'quelle'];  // allgemeine Prädikate stehen hinter den übrigen
+let edgesOpen = false;
+
+// key: Begriff klein. Ausgehend in der Reihenfolge der Zeilen, eingehend nach Prädikat und Subjekt.
+// Ein Begriff mit Definition heißt überall so, wie seine geltende Definition ihn schreibt.
+function termEdges(key, definitions) {
+  const byFile = new Map(notes.map(n => [n.filename, n]));
+  const sources = [...definitions].map(([term, file]) => [term, marksOf(byFile.get(file))]);
+  const names = new Map(sources.map(([term, marks]) =>
+    [term, marks.relations.find(r => isDefinitionKey(r.key) && r.target.toLowerCase() === term).target]));
+  const outgoing = [], incoming = [], seen = new Set();
+  for (const [term, marks] of sources) {
+    for (const r of marks.relations) {
+      const object = r.target.toLowerCase();
+      if (term !== key && object !== key) continue;
+      const id = `${term}\u0000${r.key.toLowerCase()}\u0000${object}`;
+      if (isDefinitionKey(r.key) || marks.definitions.includes(object) || seen.has(id)) continue;
+      seen.add(id);
+      const edge = { subject: names.get(term), key: r.key, object: names.get(object) ?? r.target, defined: definitions.has(object) };
+      (term === key ? outgoing : incoming).push(edge);
+    }
+  }
+  const loose = e => LOOSE_KEYS.includes(e.key.toLowerCase());
+  const byName = (a, b) => a.localeCompare(b, 'de', { sensitivity: 'base', numeric: true });
+  outgoing.sort((a, b) => loose(a) - loose(b));
+  incoming.sort((a, b) => loose(a) - loose(b) || byName(a.key, b.key) || byName(a.subject, b.subject));
+  return { outgoing, incoming };
+}
+
+// Unter der Kopfzeile: → ausgehend, ← eingehend, je Zeile Subjekt, Prädikat, Objekt. Begriffe und
+// Prädikate sind Suchen; Begriffe ohne Definition gestrichelt wie im Index. Schmal untereinander.
+function renderTermEdges(key, definitions) {
+  const { outgoing, incoming } = termEdges(key, definitions);
+  if (!outgoing.length && !incoming.length) return '';
+  const term = (name, defined) => name.toLowerCase() === key
+    ? `<span class="font-semibold text-ink-primary">${escapeHtml(name)}</span>`
+    : `<button ${act('filter', '? [[' + name + ']]')} class="justify-self-start text-left hover:underline ${defined ? 'text-[#5B2C41]' : 'text-[#6A3B52] border-b border-dashed border-[#6A3B52]/40'}">${escapeHtml(name)}</button>`;
+  const row = (arrow, e) => `
+          <div class="flex flex-wrap items-baseline gap-x-2 sm:contents">
+            <span class="text-ink-muted">${arrow}</span>
+            ${term(e.subject, true)}
+            <button ${act('filter', '? ' + e.key + '::')} class="justify-self-start text-left font-mono text-[11px] text-ink-secondary hover:text-ink-primary">${escapeHtml(e.key)}</button>
+            ${term(e.object, e.defined)}
+          </div>`;
+  const collapsible = incoming.length > EDGES_COLLAPSE;
+  return `
+        <div class="mt-3 grid grid-cols-1 sm:grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-1 text-sm break-words">
+          ${outgoing.map(e => row('→', e)).join('')}
+          ${collapsible ? `
+            <button ${act('toggleEdges')} class="sm:col-span-4 text-left text-xs uppercase tracking-wider text-ink-muted hover:text-ink-primary">
+              ${edgesOpen ? '▾' : '▸'} ${incoming.length} eingehende Kanten
+            </button>` : ''}
+          ${!collapsible || edgesOpen ? incoming.map(e => row('←', e)).join('') : ''}
+        </div>
+      `;
+}
+
+function toggleEdges() {
+  edgesOpen = !edgesOpen;
+  renderStream();
 }
 
 // ============================================================================
@@ -1697,6 +1778,7 @@ const ACTIONS = {
   showMore: () => showMore(),
   openMentions: () => toggleMentions(true),
   toggleMentions: () => toggleMentions(),
+  toggleEdges: () => toggleEdges(),
   autocomplete: index => applyAutocomplete(Number(index)),
   clearOmnibar: () => clearOmnibar(),
   undoToast: () => undoToast(),

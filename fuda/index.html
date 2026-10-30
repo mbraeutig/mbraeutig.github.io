@@ -102,7 +102,7 @@
     <div id="index-overview" class="hidden space-y-8 py-2"></div>
 
     <!-- 3. STUFE-1 SLOT: Primäre Definition (erscheint bei ? [[Begriff]] ganz oben) -->
-    <!-- Kopfzeile bei ? [[Begriff]]: Definition seit, frühere, Verlinkungen, Erwähnungen ohne Link -->
+    <!-- Kopfzeile bei ? [[Begriff]]: Definition seit, frühere, Verlinkungen, Erwähnungen ohne Link; darunter die Kanten -->
     <div id="term-header" class="hidden mb-6"></div>
 
     <div id="definition-slot" class="hidden mb-10"></div>
@@ -153,7 +153,8 @@
       (<code>? #frage ANT-412</code> sucht die Wörter „#frage“ und „ANT-412“). Die Regeln sind dieselben wie in Hitokoto.</p>
     <p>Suchwörter sind gelb markiert. <code>? zu::</code> gruppiert nach Ziel. <code>? [[Begriff]]</code> zeigt oben eine
       Kopfzeile: seit wann die Definition gilt, frühere Definitionen, Verlinkungen und „Erwähnungen ohne Link“ – Blöcke,
-      die den Begriff nur im Text nennen; dort fehlt vielleicht ein <code>[[…]]</code>.
+      die den Begriff nur im Text nennen; dort fehlt vielleicht ein <code>[[…]]</code>. Darunter die Kanten:
+      „→ Antragsteller ist-ein Person“ aus der Definition, „← Mitantragsteller ist-ein Antragsteller“ aus anderen.
       <kbd>Alt+←</kbd> (Zurück) holt nach einem Klick auf Tag oder Begriff die Suche davor.</p>
 
     <h3 class="help-h">Tasten</h3>
@@ -187,7 +188,8 @@
       <code>definition:: [[Begriff]]</code> oder <code>definiert:: [[Begriff]]</code> (wie in Hitokoto) macht einen Block
       zur Erklärung des Begriffs. Ändert sich die Bedeutung, einen neuen Block anlegen: Der zuletzt angelegte gilt und
       steht bei <code>? [[Begriff]]</code> oben, ältere bleiben als „📜 Frühere Definition“ sichtbar.
-      <code>? definition::</code> findet beide Schreibweisen.
+      <code>? definition::</code> findet beide Schreibweisen. Weitere Relationen in der geltenden Definition
+      (<code>ist-ein:: [[Person]]</code>) sind Kanten des Begriffs; bei einer neuen Definition mitnehmen.
     </p>
 
     <h3 class="help-h">Papierkorb</h3>
