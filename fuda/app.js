@@ -351,10 +351,10 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Wert als JS-String-Literal für Inline-Handler: onclick="fn(${jsArg(x)})"
-// JSON.stringify escaped Quotes, Backslashes und Zeilenumbrüche, escapeHtml schützt das Attribut.
-function jsArg(value) {
-  return escapeHtml(JSON.stringify(String(value)));
+// Klickbares Element im erzeugten HTML: <button ${act('filter', '? #java')}>. Kein onclick="…", sondern
+// data-action und data-arg; ausgeführt wird im Abschnitt AKTIONEN. Das Argument ist nur Text im Attribut.
+function act(action, arg) {
+  return `data-action="${action}"${arg === undefined ? '' : ` data-arg="${escapeHtml(arg)}"`}`;
 }
 
 // ============================================================================
@@ -462,7 +462,7 @@ function renderQuestionOverview() {
           <h3 class="text-xs tracking-widest uppercase text-ink-muted font-medium mb-3">Arten</h3>
           <div class="flex flex-wrap gap-x-5 gap-y-2.5">
             ${sortedTags.length ? sortedTags.map(({ name, count }) => `
-              <button onclick="filterBy(${jsArg('? #' + name)})" class="text-base text-[#3D5A45] hover:underline flex items-baseline gap-1 transition-colors">
+              <button ${act('filter', '? #' + name)} class="text-base text-[#3D5A45] hover:underline flex items-baseline gap-1 transition-colors">
                 <span>#${escapeHtml(name)}</span>
                 <span class="text-xs text-ink-muted font-mono">${count}</span>
               </button>
@@ -475,7 +475,7 @@ function renderQuestionOverview() {
           <h3 class="text-xs tracking-widest uppercase text-ink-muted font-medium mb-3">Begriffe (Definiert)</h3>
           <div class="flex flex-wrap gap-x-6 gap-y-2.5">
             ${definedList.length ? definedList.map(item => `
-              <button onclick="filterBy(${jsArg('? [[' + item.name + ']]')})" class="text-base text-[#5B2C41] font-medium hover:underline flex items-baseline gap-1.5 transition-colors">
+              <button ${act('filter', '? [[' + item.name + ']]')} class="text-base text-[#5B2C41] font-medium hover:underline flex items-baseline gap-1.5 transition-colors">
                 <span class="text-xs opacity-75">📖</span>
                 <span>${escapeHtml(item.name)}</span>
                 <span class="text-xs text-ink-muted font-mono">${item.count}</span>
@@ -493,12 +493,12 @@ function renderQuestionOverview() {
           <div class="flex flex-wrap gap-x-6 gap-y-2.5">
             ${virtualList.length ? virtualList.map(item => `
               <div class="inline-flex items-baseline gap-1.5 group">
-                <button onclick="filterBy(${jsArg('? [[' + item.name + ']]')})" class="text-base text-[#6A3B52] hover:underline flex items-baseline gap-1 border-b border-dashed border-[#6A3B52]/40">
+                <button ${act('filter', '? [[' + item.name + ']]')} class="text-base text-[#6A3B52] hover:underline flex items-baseline gap-1 border-b border-dashed border-[#6A3B52]/40">
                   <span>${escapeHtml(item.name)}</span>
                   <span class="text-xs text-ink-muted font-mono">${item.count}</span>
                 </button>
                 <button
-                  onclick="prefillDefinition(${jsArg(item.name)})"
+                  ${act('define', item.name)}
                   title="Definition für „${escapeHtml(item.name)}“ jetzt anlegen"
                   class="text-[11px] font-mono text-ink-muted hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-1.5 py-0.2 rounded opacity-70 group-hover:opacity-100 transition-opacity"
                 >+ def</button>
@@ -512,7 +512,7 @@ function renderQuestionOverview() {
           <h3 class="text-xs tracking-widest uppercase text-ink-muted font-medium mb-3">Relationen</h3>
           <div class="flex flex-wrap gap-x-5 gap-y-2.5">
             ${sortedRels.length ? sortedRels.map(({ name: rel, count }) => `
-              <button onclick="filterBy(${jsArg('? ' + rel + '::')})" class="text-sm font-mono text-ink-secondary hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-2.5 py-1 rounded-md border border-paper-border flex items-baseline gap-1.5 transition-colors">
+              <button ${act('filter', '? ' + rel + '::')} class="text-sm font-mono text-ink-secondary hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-2.5 py-1 rounded-md border border-paper-border flex items-baseline gap-1.5 transition-colors">
                 <span>${escapeHtml(rel)}::</span>
                 <span class="text-xs text-ink-muted">${count}</span>
               </button>
@@ -537,16 +537,16 @@ function prefillDefinition(termName) {
 function linkButtonHTML(inner) {
   const target = linkTarget(inner);
   if (!target) return escapeHtml(`[[${inner}]]`);
-  return `<button onclick="event.stopPropagation(); filterBy(${jsArg('? [[' + target + ']]')})" class="bg-[#EAE4D7] hover:bg-amber-200/70 text-ink-primary px-1.5 py-0.5 rounded text-xs font-medium inline-flex items-center gap-0.5"><span>↗</span>${escapeHtml(linkLabel(inner))}</button>`;
+  return `<button ${act('filter', '? [[' + target + ']]')} class="bg-[#EAE4D7] hover:bg-amber-200/70 text-ink-primary px-1.5 py-0.5 rounded text-xs font-medium inline-flex items-center gap-0.5"><span>↗</span>${escapeHtml(linkLabel(inner))}</button>`;
 }
 
 // `Inline-Code`: ein Klick kopiert ihn, außer man hat darin gerade Text markiert
 function inlineCodeHTML(code) {
-  return `<code onclick="event.stopPropagation(); if (getSelection().isCollapsed) copyText(${jsArg(code)})" title="Klicken zum Kopieren" class="font-mono text-[0.85em] bg-paper-code hover:bg-stone-300/80 px-1 py-0.5 rounded cursor-pointer">${escapeHtml(code)}</code>`;
+  return `<code ${act('copyInline', code)} title="Klicken zum Kopieren" class="font-mono text-[0.85em] bg-paper-code hover:bg-stone-300/80 px-1 py-0.5 rounded cursor-pointer">${escapeHtml(code)}</code>`;
 }
 
 function anchorHTML(url, label) {
-  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-[#3D5A45] underline decoration-[#3D5A45]/40 hover:decoration-[#3D5A45] break-all">${label}</a>`;
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-[#3D5A45] underline decoration-[#3D5A45]/40 hover:decoration-[#3D5A45] break-all">${label}</a>`;
 }
 
 // Inline-Markdown: `code`, [[Begriff]], [Text](url), nackte URLs, **fett**, *kursiv*
@@ -610,11 +610,11 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
             <textarea
               id="edit-area-${escapeHtml(note.filename)}"
               class="w-full bg-transparent outline-none font-mono text-xs sm:text-sm text-ink-primary leading-relaxed resize-y min-h-[140px]"
-              onkeydown="handleInlineEditKey(event, ${jsArg(note.filename)})"
+              data-inline-edit="${escapeHtml(note.filename)}"
             >${escapeHtml(editDraft ?? note.raw)}</textarea>
             <div class="mt-2 flex justify-end gap-2">
-              <button onclick="cancelInlineEdit()" class="text-xs px-3 py-1 rounded text-ink-secondary hover:bg-paper-code">Abbrechen</button>
-              <button onclick="saveInlineEdit(${jsArg(note.filename)})" class="text-xs px-3 py-1 rounded bg-ink-primary text-[#F6F4F0] font-medium hover:opacity-90">Speichern</button>
+              <button ${act('cancelEdit')} class="text-xs px-3 py-1 rounded text-ink-secondary hover:bg-paper-code">Abbrechen</button>
+              <button ${act('saveEdit', note.filename)} class="text-xs px-3 py-1 rounded bg-ink-primary text-[#F6F4F0] font-medium hover:opacity-90">Speichern</button>
             </div>
           </article>
         `;
@@ -641,7 +641,7 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
             <div class="my-2.5 rounded-lg overflow-hidden bg-paper-darkcode shadow-inner">
               <div class="code-bar flex items-center justify-between px-3.5 pt-2 font-mono text-[11px] text-[#A8A29A]">
                 <span>${escapeHtml(block.lang || 'code')}</span>
-                <button onclick="event.stopPropagation(); copyText(${jsArg(codeOf(block, lines))})" title="Code ohne Fences kopieren" class="hover:text-[#F4F1EA] transition-colors">Kopieren</button>
+                <button ${act('copy', codeOf(block, lines))} title="Code ohne Fences kopieren" class="hover:text-[#F4F1EA] transition-colors">Kopieren</button>
               </div>
               <pre class="text-[#F4F1EA] font-mono text-xs leading-relaxed px-3.5 pb-3.5 pt-1.5 overflow-x-auto"><code>${escapeHtml(codeOf(block, lines))}</code></pre>
             </div>
@@ -724,8 +724,8 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
     const label = escapeHtml(r.key) + '::';
     return `
           <div class="inline-flex items-center rounded-md overflow-hidden border ${isDef ? 'border-amber-400/90' : 'border-stone-300/80'} text-xs">
-            <span onclick="event.stopPropagation(); filterBy(${jsArg('? ' + r.key + '::')})" class="${isDef ? 'bg-amber-100 text-amber-900' : 'bg-[#E6E2DA] text-ink-secondary'} px-2 py-0.5 cursor-pointer hover:brightness-95 font-mono text-[11px]">${isDef ? '📖 ' + label : isOlderDefinition(r) ? '📜 ' + label : label}</span>
-            <button onclick="event.stopPropagation(); filterBy(${jsArg('? [[' + r.target + ']]')})" class="bg-paper-surface hover:bg-amber-100/60 text-ink-primary font-medium px-2 py-0.5 transition-colors flex items-center gap-1">
+            <span ${act('filter', '? ' + r.key + '::')} class="${isDef ? 'bg-amber-100 text-amber-900' : 'bg-[#E6E2DA] text-ink-secondary'} px-2 py-0.5 cursor-pointer hover:brightness-95 font-mono text-[11px]">${isDef ? '📖 ' + label : isOlderDefinition(r) ? '📜 ' + label : label}</span>
+            <button ${act('filter', '? [[' + r.target + ']]')} class="bg-paper-surface hover:bg-amber-100/60 text-ink-primary font-medium px-2 py-0.5 transition-colors flex items-center gap-1">
               <span class="text-ink-muted text-[10px]">↗</span> ${escapeHtml(r.label)}
             </button>
           </div>
@@ -733,13 +733,13 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
   }).join('');
 
   const tagsHtml = tags.map(t => `
-        <button onclick="event.stopPropagation(); filterBy(${jsArg('? #' + t)})" class="bg-tag-bg text-tag-text hover:brightness-95 text-xs font-medium px-2.5 py-0.5 rounded-md transition-all">
+        <button ${act('filter', '? #' + t)} class="bg-tag-bg text-tag-text hover:brightness-95 text-xs font-medium px-2.5 py-0.5 rounded-md transition-all">
           #${escapeHtml(t)}
         </button>
       `).join('');
 
   const isSelected = selectedFilename === note.filename;
-  const fileArg = jsArg(note.filename);
+  const file = note.filename;
   const key = k => `<kbd class="ml-0.5 px-1 bg-paper-code rounded font-mono text-[10px] text-ink-muted">${k}</kbd>`;
 
   // tabindex="-1": nur per Skript fokussierbar, damit der gewählte Block die Tasten bekommt.
@@ -748,7 +748,7 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
         <article
           id="note-${escapeHtml(note.filename)}"
           tabindex="-1"
-          ondblclick="startInlineEdit(${fileArg})"
+          data-dblaction="edit" data-arg="${escapeHtml(file)}"
           class="note-block group relative flow-root rounded-xl p-4 -mx-4 outline-none scroll-mt-36 scroll-mb-20 hover:bg-paper-surface/60 transition-colors cursor-default ${pinned ? 'bg-paper-surface/90 border border-stone-300 shadow-sm mx-0' : ''} ${isSelected ? 'bg-paper-surface/80 ring-2 ring-stone-400/70' : ''}"
         >
           ${pinned ? '<div class="text-[11px] font-mono uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1.5"><span>📖 Definition</span></div>' : ''}
@@ -757,7 +757,7 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
           <!-- Buttons floaten rechts oben: Titel bzw. erste Textzeile laufen daneben -->
           <div class="float-right flex items-center gap-1 ml-3">
             <button
-              onclick="event.stopPropagation(); chooseBlock(${fileArg})"
+              ${act('choose', file)}
               title="Auswählen · ${escapeHtml(note.filename)}"
               class="px-2 py-1 text-ink-muted hover:text-ink-primary rounded hover:bg-paper-code font-bold leading-none transition-colors ${isSelected ? 'bg-paper-code text-ink-primary' : ''}"
             >⋮</button>
@@ -780,20 +780,20 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
           ${isSelected ? `
             <div class="mt-3.5 pt-2.5 border-t border-paper-border flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary bg-[#EAE6DF]/60 -mx-4 -mb-4 px-4 py-2.5 rounded-b-xl">
               <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-                <button onclick="event.stopPropagation(); startInlineEdit(${fileArg})" title="Bearbeiten (E)" class="hover:text-ink-primary flex items-center gap-1 font-medium transition-colors">
+                <button ${act('edit', file)} title="Bearbeiten (E)" class="hover:text-ink-primary flex items-center gap-1 font-medium transition-colors">
                   <span>✏️</span> Bearbeiten ${key('E')}
                 </button>
-                <button onclick="event.stopPropagation(); openExternalEditor(${fileArg})" title="Im Editor öffnen (O)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
+                <button ${act('openEditor', file)} title="Im Editor öffnen (O)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
                   <span>↗</span> Im Editor ${key('O')}
                 </button>
-                <button onclick="event.stopPropagation(); copyBlock(${fileArg})" title="Kopieren (C)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
+                <button ${act('copyBlock', file)} title="Kopieren (C)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
                   <span>📋</span> Kopieren ${key('C')}
                 </button>
-                <button onclick="event.stopPropagation(); trashBlock(${fileArg})" title="In den Papierkorb (Entf)" class="text-red-700/80 hover:text-red-700 flex items-center gap-1 transition-colors">
+                <button ${act('trash', file)} title="In den Papierkorb (Entf)" class="text-red-700/80 hover:text-red-700 flex items-center gap-1 transition-colors">
                   <span>🗑️</span> Papierkorb ${key('Entf')}
                 </button>
               </div>
-              <button onclick="event.stopPropagation(); endSelection()" title="Auswahl beenden (Esc)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
+              <button ${act('endSelection')} title="Auswahl beenden (Esc)" class="hover:text-ink-primary flex items-center gap-1 transition-colors">
                 ✕ ${key('Esc')}
               </button>
             </div>
@@ -908,7 +908,7 @@ function renderStream() {
   if (hiddenCount > 0) {
     html += `
           <div class="text-center">
-            <button onclick="showMore()" class="text-xs text-ink-secondary hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-3 py-1.5 rounded-md border border-paper-border transition-colors">
+            <button ${act('showMore')} class="text-xs text-ink-secondary hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-3 py-1.5 rounded-md border border-paper-border transition-colors">
               Weitere ${Math.min(PAGE_SIZE, hiddenCount)} anzeigen · noch ${hiddenCount} ältere
             </button>
           </div>
@@ -962,7 +962,7 @@ function renderTargetGroups(list, query, definitions) {
         <section class="target-group">
           <div class="flex items-center gap-4 mb-3">
             <h2 class="font-serif text-lg font-medium shrink-0">
-              <button onclick="filterBy(${jsArg('? [[' + target + ']]')})" class="text-[#5B2C41] hover:underline">${escapeHtml(target)}</button>
+              <button ${act('filter', '? [[' + target + ']]')} class="text-[#5B2C41] hover:underline">${escapeHtml(target)}</button>
               <span class="ml-1 text-xs font-sans text-ink-muted">${groupNotes.length}</span>
             </h2>
             <div class="h-px bg-paper-border w-full"></div>
@@ -1008,11 +1008,11 @@ function renderTermHeader(query, linked, mentions, definitions) {
     if (definers.length > 1) parts.push(`<span>📜 ${definers.length - 1} frühere</span>`);
   } else {
     parts.push(`<span>Noch ohne Definition</span>
-          <button onclick="prefillDefinition(${jsArg(name)})" class="text-[11px] font-mono text-ink-muted hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-1.5 py-0.5 rounded">+ def</button>`);
+          <button ${act('define', name)} class="text-[11px] font-mono text-ink-muted hover:text-ink-primary bg-paper-surface hover:bg-paper-code px-1.5 py-0.5 rounded">+ def</button>`);
   }
   parts.push(`<span>${linked.length} verlinkt</span>`);
   if (linked.length) parts.push(`<span>zuletzt ${formatDate(createdAt(linked.reduce((a, b) => (createdAt(a) > createdAt(b) ? a : b))))}</span>`);
-  if (mentions.length) parts.push(`<button onclick="toggleMentions(true)" class="underline decoration-dotted hover:text-ink-primary">${mentions.length} ${mentions.length === 1 ? 'Erwähnung' : 'Erwähnungen'} ohne Link</button>`);
+  if (mentions.length) parts.push(`<button ${act('openMentions')} class="underline decoration-dotted hover:text-ink-primary">${mentions.length} ${mentions.length === 1 ? 'Erwähnung' : 'Erwähnungen'} ohne Link</button>`);
   return `
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 class="font-serif text-2xl font-semibold text-ink-primary">${escapeHtml(name)}</h2>
@@ -1025,7 +1025,7 @@ function renderTermHeader(query, linked, mentions, definitions) {
 function renderMentions(mentions, definitions) {
   return `
         <section id="mentions" class="border-t border-dashed border-paper-border pt-4">
-          <button onclick="toggleMentions()" class="text-xs uppercase tracking-wider text-ink-muted hover:text-ink-primary">
+          <button ${act('toggleMentions')} class="text-xs uppercase tracking-wider text-ink-muted hover:text-ink-primary">
             ${mentionsOpen ? '▾' : '▸'} Auch im Text erwähnt, ohne Link: ${mentions.length} ${mentions.length === 1 ? 'Block' : 'Blöcke'}
           </button>
           ${mentionsOpen ? `
@@ -1347,9 +1347,8 @@ function updateAutocomplete() {
 }
 
 function renderAutocomplete() {
-  // mousedown.preventDefault: Fokus bleibt in der Omnibar, damit blur die Liste nicht vor dem Klick schließt
   acBox.innerHTML = acState.suggestions.map((s, i) => `
-        <button type="button" onmousedown="event.preventDefault()" onclick="applyAutocomplete(${i})" class="w-full text-left px-3 py-1.5 hover:bg-paper-code ${i === acState.selected ? 'bg-paper-code' : ''} text-ink-primary flex items-center justify-between">
+        <button type="button" ${act('autocomplete', String(i))} class="w-full text-left px-3 py-1.5 hover:bg-paper-code ${i === acState.selected ? 'bg-paper-code' : ''} text-ink-primary flex items-center justify-between">
           <span>${escapeHtml(s)}</span>
           <span class="text-[10px] text-ink-muted">${i === acState.selected ? (acState.navigated ? 'Enter / Tab' : 'Tab') : 'Einfügen'}</span>
         </button>
@@ -1374,6 +1373,8 @@ function applyAutocomplete(index) {
 }
 
 omnibar.addEventListener('blur', hideAutocomplete);
+// Fokus bleibt beim Klick auf einen Vorschlag in der Omnibar, sonst schließt blur die Liste vor dem Klick
+acBox.addEventListener('mousedown', e => e.preventDefault());
 
 // ============================================================================
 // 6. AUSWAHL & TASTATUR (Verhalten wie Hitokoto)
@@ -1612,5 +1613,55 @@ function closeHelp() {
   helpPanel.classList.add('hidden');
   omnibar.focus();
 }
+
+// ============================================================================
+// 8. AKTIONEN: Klicks auf Elemente mit data-action (erzeugt von act()) und in index.html
+// ============================================================================
+// Ein Listener statt onclick="…": So braucht die CSP kein 'unsafe-inline' für Skripte, und selbst ein
+// eingeschleustes Attribut in einer Notiz führt kein Skript aus. Das innerste Element mit Aktion gewinnt.
+const ACTIONS = {
+  filter: query => filterBy(query),
+  define: term => prefillDefinition(term),
+  copy: text => copyText(text),
+  // Inline-Code: nicht kopieren, wenn man darin gerade Text markiert hat
+  copyInline: text => { if (getSelection().isCollapsed) copyText(text); },
+  choose: file => chooseBlock(file),
+  edit: file => startInlineEdit(file),
+  openEditor: file => openExternalEditor(file),
+  copyBlock: file => copyBlock(file),
+  trash: file => trashBlock(file),
+  endSelection: () => endSelection(),
+  cancelEdit: () => cancelInlineEdit(),
+  saveEdit: file => saveInlineEdit(file),
+  showMore: () => showMore(),
+  openMentions: () => toggleMentions(true),
+  toggleMentions: () => toggleMentions(),
+  autocomplete: index => applyAutocomplete(Number(index)),
+  clearOmnibar: () => clearOmnibar(),
+  undoToast: () => undoToast(),
+  openHelp: () => openHelp(),
+  closeHelp: () => closeHelp(),
+};
+
+function runAction(el, action) {
+  ACTIONS[action]?.(el.dataset.arg);
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest?.('[data-action]');
+  if (el) runAction(el, el.dataset.action);
+});
+
+// Doppelklick auf einen Block: bearbeiten
+document.addEventListener('dblclick', (e) => {
+  const el = e.target.closest?.('[data-dblaction]');
+  if (el) runAction(el, el.dataset.dblaction);
+});
+
+// Tasten im Inline-Editor. Läuft vor dem Tasten-Listener am window (document liegt näher am Ziel).
+document.addEventListener('keydown', (e) => {
+  const area = e.target.closest?.('[data-inline-edit]');
+  if (area) handleInlineEditKey(e, area.dataset.inlineEdit);
+});
 
 initApp();
