@@ -30,9 +30,9 @@ zu:: [[Immo-DV]]
     filename: '20261021-105907-u3b0.md',
     lastModified: new Date(Date.now() - 3600 * 1000).toISOString(),
     raw: `# Testuser
-Name: Erika Mustermann
-RZBK: 1234
-Personennummer: 00000001
+Name: \`Erika Mustermann\`
+RZBK: \`1234\`
+Personennummer: \`00000001\`
 Umgebung: Test
 
 zu:: [[Immo-DV]]
@@ -71,8 +71,8 @@ definition:: [[Antragsteller]]
     filename: '20261018-182118-fvn7.md',
     lastModified: '2026-10-21T08:30:00.000Z',
     raw: `# Testuser
-Name: Max Mustermann
-RZBK: 1234
+Name: \`Max Mustermann\`
+RZBK: \`1234\`
 Zugang: steht im Passwort-Tresor, nicht in Notizen
 
 #testdaten`
@@ -540,6 +540,11 @@ function linkButtonHTML(inner) {
   return `<button onclick="event.stopPropagation(); filterBy(${jsArg('? [[' + target + ']]')})" class="bg-[#EAE4D7] hover:bg-amber-200/70 text-ink-primary px-1.5 py-0.5 rounded text-xs font-medium inline-flex items-center gap-0.5"><span>↗</span>${escapeHtml(linkLabel(inner))}</button>`;
 }
 
+// `Inline-Code`: ein Klick kopiert ihn, außer man hat darin gerade Text markiert
+function inlineCodeHTML(code) {
+  return `<code onclick="event.stopPropagation(); if (getSelection().isCollapsed) copyText(${jsArg(code)})" title="Klicken zum Kopieren" class="font-mono text-[0.85em] bg-paper-code hover:bg-stone-300/80 px-1 py-0.5 rounded cursor-pointer">${escapeHtml(code)}</code>`;
+}
+
 function anchorHTML(url, label) {
   return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-[#3D5A45] underline decoration-[#3D5A45]/40 hover:decoration-[#3D5A45] break-all">${label}</a>`;
 }
@@ -553,7 +558,7 @@ function renderInline(text) {
   let last = 0;
   for (const m of text.matchAll(INLINE_PATTERN)) {
     html += escapeHtml(text.slice(last, m.index));
-    if (m[1] !== undefined) html += `<code class="font-mono text-[0.85em] bg-paper-code px-1 py-0.5 rounded">${escapeHtml(m[1])}</code>`;
+    if (m[1] !== undefined) html += inlineCodeHTML(m[1]);
     else if (m[2] !== undefined) html += linkButtonHTML(m[2]);
     else if (m[3] !== undefined) html += anchorHTML(m[4], escapeHtml(m[3]));
     else if (m[5] !== undefined) html += anchorHTML(m[5], escapeHtml(m[5]));
@@ -693,22 +698,6 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
             <div class="flex gap-2 text-sm leading-relaxed ${done ? 'text-ink-muted line-through' : 'text-ink-primary'}" style="padding-left: ${indent * 1.25}rem">
               <span class="shrink-0 min-w-[1rem] text-ink-muted">${marker}</span>
               <span>${renderInline(text)}</span>
-            </div>
-          `);
-      continue;
-    }
-
-    const kvMatch = trimmed.match(/^([A-Za-zÄÖÜäöüß0-9_-]{2,25}):\s+(.+)$/);
-    if (kvMatch && !trimmed.includes('http://') && !trimmed.includes('https://')) {
-      const k = kvMatch[1];
-      const v = kvMatch[2].trim();
-      contentHtmlParts.push(`
-            <div class="flex items-baseline gap-2 py-0.5 text-sm">
-              <span class="text-ink-secondary w-36 shrink-0">${escapeHtml(k)}:</span>
-              <button onclick="event.stopPropagation(); copyText(${jsArg(v)})" title="Klicken zum Kopieren" class="font-mono text-xs bg-paper-code hover:bg-stone-300/80 px-2 py-0.5 rounded border border-transparent hover:border-stone-400/40 transition-all inline-flex items-center gap-1.5 group/val">
-                <span>${escapeHtml(v)}</span>
-                <span class="text-[10px] text-ink-muted opacity-0 group-hover/val:opacity-100">📋</span>
-              </button>
             </div>
           `);
       continue;
@@ -1514,7 +1503,7 @@ function copyBlock(filename) {
   if (note) copyText(note.raw);
 }
 
-// Ein Weg für alles Kopieren: Block (C), Kopier-Kapsel, „Kopieren“ am Code-Block
+// Ein Weg für alles Kopieren: Block (C), Inline-Code, „Kopieren“ am Code-Block
 async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
