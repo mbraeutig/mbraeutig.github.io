@@ -51,6 +51,26 @@
     .hljs-deletion { color: #E2A3A3; }
     .hljs-emphasis { font-style: italic; }
     .hljs-strong { font-weight: 600; }
+    /* 札 Fuda (Klick auf den Namen): Washi-Papier, Pinsel malt 札, Siegel ふだ landet, Bilanz erscheint */
+    #fuda-splash { background: #F3EFE6; cursor: pointer; animation: splash-in 0.4s ease-out both; }
+    #fuda-splash.closing { animation: splash-out 0.45s ease-in both; }
+    #fuda-splash .washi { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #fuda-splash .brush { fill: none; stroke: #fff; stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; opacity: 0; animation-name: brush; animation-timing-function: cubic-bezier(0.55, 0.05, 0.35, 1); animation-fill-mode: forwards; }
+    #fuda-splash .drop { opacity: 0; animation: drop 0.25s ease-out forwards; }
+    @keyframes drop { from { opacity: 0; transform: scale(0.2); transform-origin: center; transform-box: fill-box; } to { opacity: 0.9; transform: none; transform-box: fill-box; } }
+    #fuda-splash .hanko { opacity: 0; transform-origin: 50% 50%; animation: hanko 0.42s cubic-bezier(0.2, 1.3, 0.4, 1) var(--seal-at) forwards; }
+    #fuda-splash .splash-paper { animation: thump 0.28s ease-out calc(var(--seal-at) + 0.3s); }
+    #fuda-splash .splash-text { opacity: 0; animation: fade-up 0.8s ease-out calc(var(--seal-at) + 0.55s) forwards; }
+    #fuda-splash .splash-later { animation-delay: calc(var(--seal-at) + 0.95s); }
+    @keyframes splash-in { from { opacity: 0; } }
+    @keyframes splash-out { to { opacity: 0; filter: blur(6px); transform: scale(1.02); } }
+    @keyframes brush { from { opacity: 1; stroke-dashoffset: 1; } to { opacity: 1; stroke-dashoffset: 0; } }
+    @keyframes hanko { from { opacity: 0; transform: scale(2.4) rotate(-20deg); } 70% { opacity: 0.95; transform: scale(0.93) rotate(-4deg); } to { opacity: 0.92; transform: scale(1) rotate(-6deg); } }
+    @keyframes thump { 35% { transform: translateY(2px) scale(0.996); } }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      #fuda-splash, #fuda-splash * { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+    }
   </style>
 </head>
 <body class="font-sans antialiased min-h-screen py-10 px-4 sm:px-6">
@@ -95,7 +115,7 @@
         <span id="block-counter">0 BLÖCKE</span>
         <span id="storage-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-paper-code text-ink-secondary normal-case tracking-normal">Lade...</span>
       </div>
-      <span class="font-serif text-sm normal-case tracking-normal text-ink-secondary" title="Fuda – ein Gedanke, ein Zettel">札 Fuda</span>
+      <button type="button" data-action="openSplash" class="font-serif text-sm normal-case tracking-normal text-ink-secondary hover:text-ink-primary transition-colors" title="Fuda – ein Gedanke, ein Zettel">札 Fuda</button>
     </div>
 
     <!-- 2. ?-INDEX-VIEW (Erscheint, wenn nur "?" in der Omnibar steht) -->
@@ -111,6 +131,9 @@
     <div id="stream" class="space-y-10"></div>
 
   </main>
+
+  <!-- 札 Fuda: Pinsel und Siegel (renderSplash in app.js); ein Klick irgendwo schließt -->
+  <div id="fuda-splash" role="dialog" aria-label="Fuda" data-action="closeSplash" class="hidden fixed inset-0 z-[60] overflow-hidden"></div>
 
   <!-- Meldung unten für 5 Sekunden, optional mit „Rückgängig“ (Entfernen, Speichern, Feld geleert) -->
   <div id="toast" role="status" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-[#FAF9F6] border border-paper-border rounded-xl shadow-lg pl-4 pr-2 py-2 text-sm text-ink-primary">

@@ -4,7 +4,7 @@
 //    2. Laden: Server oder Demo                  9. Treffer markieren
 //    3. MUSTER (Regeln von Hitokoto)            10. Omnibar: Tippen, Suchen, Anlegen, Vorschläge
 //    4. SUCHE (Suchformen von Hitokoto)         11. Auswahl, Bearbeiten, Papierkorb
-//    5. ?-Übersicht                             12. Meldung und Hilfe
+//    5. ?-Übersicht                             12. Meldung, Hilfe und 札 (Pinsel und Siegel)
 //    6. Block-Darstellung                       13. AKTIONEN (Klicks über data-action)
 //    7. Stream
 // ============================================================================
@@ -1289,6 +1289,12 @@ window.addEventListener('popstate', (e) => {
 // Strg+K springt von überall ins Feld. Am gewählten Block: ↓ ↑ E C O Entf Esc – nur ohne Strg/Alt/Meta
 // (Strg+C bleibt das Kopieren des Browsers) und nie, während ein Textfeld den Fokus hat.
 window.addEventListener('keydown', (e) => {
+  // 札 Fuda offen: jede Taste schließt es, sonst nichts
+  if (!splashEl.classList.contains('hidden')) {
+    e.preventDefault();
+    closeSplash();
+    return;
+  }
   if (e.key === 'F1') {
     e.preventDefault();
     helpPanel.classList.contains('hidden') ? openHelp() : closeHelp();
@@ -1714,7 +1720,7 @@ function clearOmnibar() {
 }
 
 // ============================================================================
-// 12. MELDUNG (TOAST) & HILFE
+// 12. MELDUNG (TOAST), HILFE UND 札 (Klick auf den Namen: Pinsel und Siegel)
 // ============================================================================
 const TOAST_MS = 5000;
 let toastTimer = null;
@@ -1756,6 +1762,108 @@ function closeHelp() {
   omnibar.focus();
 }
 
+// 札 Fuda (Klick auf den Namen oben rechts): Auf Washi-Papier malt ein Pinsel das Zeichen 札 in der
+// richtigen Strichfolge, dann landet das rote Siegel ふだ, darunter die eigene Bilanz. Nur zur Freude;
+// ein Klick oder eine Taste schließt es. Bewegung nur per CSS (index.html, .brush, .hanko), bei
+// „Bewegung reduzieren“ gleich das fertige Bild.
+const splashEl = document.getElementById('fuda-splash');
+
+// Die fünf Striche von 札 (viewBox 100×100) in Schreibreihenfolge: 木 als linke Hälfte (waagrecht,
+// senkrecht, links fallend, Punkt), dann 乚. Je Strich die Pinselform (gefüllt: Ansatz, Zug, Auslauf),
+// der Weg des Pinsels (eine Maske legt die Form entlang dieses Wegs frei) und die Dauer des Zugs in s.
+const FUDA_STROKES = [
+  ['M9 34 C 8.6 30.4, 12.6 29.6, 16 31 C 24 31.2, 34 29.6, 41 27.6 C 44.4 26.6, 47.8 28, 47.2 31.2 C 46.7 33.6, 44 34.3, 41 34.2 C 33 35, 22 36.6, 15 37.8 C 11.2 38.4, 9.2 36.8, 9 34 Z',
+    'M8 34 C 20 33, 33 31.5, 48 30', 0.34],
+  ['M24.4 12.4 C 24.8 8.4, 30.8 8, 31.6 11.6 C 31 30, 30.6 60, 30.3 89.5 C 30.2 93.6, 25.4 94, 25.3 89.8 C 25.1 62, 24.8 34, 24.4 12.4 Z',
+    'M28 6 L 28 96', 0.5],
+  ['M24.6 36.6 C 27.2 34.8, 30.4 36.4, 29.6 39.8 C 26.4 53, 18.6 65.2, 5.6 75 C 12.6 64.4, 19 52.4, 23.4 39.8 C 23.6 38.4, 23.9 37.2, 24.6 36.6 Z',
+    'M27 36 C 22 52, 16 63, 4.6 75.6', 0.36],
+  ['M30.2 46.4 C 32.8 45.4, 37.2 48.4, 40.6 52.4 C 43.6 55.6, 43.6 59.6, 40.6 60.1 C 37.6 60.5, 35 56.2, 32 51.6 C 30.4 49.6, 29.4 47.4, 30.2 46.4 Z',
+    'M30 46 L 43 60', 0.22],
+  ['M54.8 12.4 C 55 8.6, 61.2 8.2, 61.6 12 C 61.2 35, 61.1 58, 61.3 77 C 61.5 83, 63.6 85.6, 70 85.6 L 85 85.6 C 88 85.6, 89.6 83.4, 90.6 79 L 93.2 65.6 C 94.8 69, 95.8 76, 95.8 81 C 95.9 89, 92 92.6, 85.4 92.6 L 69 92.6 C 59 92.6, 54.6 87.6, 54.6 78 C 54.7 58, 54.8 35, 54.8 12.4 Z',
+    'M58 6 L 58 80 C 58 86, 62 89, 70 89 L 87 89 C 92 89, 94 84, 94.8 63', 0.8],
+];
+
+// „312 Zettel · 41 Begriffe · seit 18. Oktober 2026“
+function splashStats() {
+  if (!notes.length) return 'Noch kein Zettel – der erste wartet';
+  const terms = new Set(notes.flatMap(n => marksOf(n).links.map(l => l.toLowerCase())));
+  const oldest = notes.reduce((a, b) => (createdAt(a) < createdAt(b) ? a : b));
+  const since = new Date(createdAt(oldest)).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+  return `${notes.length} Zettel · ${terms.size} ${terms.size === 1 ? 'Begriff' : 'Begriffe'} · seit ${since}`;
+}
+
+function renderSplash() {
+  let start = 0.45; // erst das Papier, dann der Pinsel
+  const masks = [];
+  const strokes = FUDA_STROKES.map(([shape, path, duration], i) => {
+    masks.push(`<mask id="zug-${i}" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><path class="brush" d="${path}" pathLength="1" style="animation-delay: ${start.toFixed(2)}s; animation-duration: ${duration}s"/></mask>`);
+    start += duration + 0.12; // der Pinsel setzt kurz ab
+    return `<path d="${shape}" mask="url(#zug-${i})"/>`;
+  }).join('');
+  const sealAt = start + 0.15;
+  // Zwei Tuschespritzer, wo der Pinsel abhebt: am Ende des fallenden Strichs und am Haken von 乚
+  const dropsAt = (i, extra) => (0.45 + FUDA_STROKES.slice(0, i + 1).reduce((t, s) => t + s[2] + 0.12, 0) - 0.1 + extra).toFixed(2);
+  return `
+    <svg class="washi" aria-hidden="true">
+      <filter id="washi-fasern"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.9" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0 0.32  0 0 0 0.16 0"/></filter>
+      <rect width="100%" height="100%" filter="url(#washi-fasern)"/>
+    </svg>
+    <div class="splash-paper relative h-full flex flex-col items-center justify-center gap-5 px-4" style="--seal-at: ${sealAt.toFixed(2)}s">
+      <div class="relative">
+        <svg viewBox="0 0 100 100" width="240" height="240" aria-label="札">
+          <defs>
+            <filter id="tusche" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" result="rau"/>
+              <feDisplacementMap in="SourceGraphic" in2="rau" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="kante"/>
+              <feGaussianBlur in="kante" stdDeviation="0.3"/>
+            </filter>
+            <filter id="stempel" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="1.3" numOctaves="2" seed="11" result="koerner"/>
+              <feColorMatrix in="koerner" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.62" result="maske"/>
+              <feComposite in="SourceGraphic" in2="maske" operator="in" result="gedruckt"/>
+              <feTurbulence type="fractalNoise" baseFrequency="0.5" seed="4" result="wellen"/>
+              <feDisplacementMap in="gedruckt" in2="wellen" scale="1.5" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+            ${masks.join('')}
+          </defs>
+          <g filter="url(#tusche)" fill="#1B1A18">
+            ${strokes}
+            <circle class="drop" cx="3.2" cy="78.4" r="0.9" style="animation-delay: ${dropsAt(2, 0)}s"/>
+            <circle class="drop" cx="96.8" cy="60.6" r="1.1" style="animation-delay: ${dropsAt(4, 0)}s"/>
+            <circle class="drop" cx="98.4" cy="56.8" r="0.55" style="animation-delay: ${dropsAt(4, 0.05)}s"/>
+          </g>
+        </svg>
+        <svg class="hanko absolute -right-16 -bottom-1" viewBox="0 0 40 52" width="50" height="65" aria-label="ふだ">
+          <g filter="url(#stempel)">
+            <rect x="2" y="2" width="36" height="48" rx="5" fill="#B8322A"/>
+            <text x="20" y="23" text-anchor="middle" font-size="17" font-weight="700" fill="#F3EFE6" font-family="'Yu Mincho', 'MS Mincho', serif">ふ</text>
+            <text x="20" y="43" text-anchor="middle" font-size="17" font-weight="700" fill="#F3EFE6" font-family="'Yu Mincho', 'MS Mincho', serif">だ</text>
+          </g>
+        </svg>
+      </div>
+      <p class="splash-text font-serif italic text-lg text-ink-secondary">Ein Gedanke. Ein Zettel. Sofort.</p>
+      <p class="splash-text splash-later text-[11px] tracking-widest uppercase text-ink-muted">${escapeHtml(splashStats())}</p>
+    </div>
+  `;
+}
+
+function openSplash() {
+  splashEl.innerHTML = renderSplash(); // neu, damit die Animation jedes Mal von vorn beginnt
+  splashEl.classList.remove('hidden', 'closing');
+}
+
+// Verweht kurz, dann ist es weg
+function closeSplash() {
+  if (splashEl.classList.contains('hidden') || splashEl.classList.contains('closing')) return;
+  splashEl.classList.add('closing');
+  setTimeout(() => {
+    splashEl.classList.add('hidden');
+    splashEl.classList.remove('closing');
+    splashEl.innerHTML = '';
+  }, 450);
+}
+
 // ============================================================================
 // 13. AKTIONEN: Klicks auf Elemente mit data-action (erzeugt von act()) und in index.html
 // ============================================================================
@@ -1784,6 +1892,8 @@ const ACTIONS = {
   undoToast: () => undoToast(),
   openHelp: () => openHelp(),
   closeHelp: () => closeHelp(),
+  openSplash: () => openSplash(),
+  closeSplash: () => closeSplash(),
 };
 
 function runAction(el, action) {
