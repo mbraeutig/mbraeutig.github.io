@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Fuda 札 „Zettel“: das Zeichen in Tinte auf Papier, mit rotem Stempel (Hanko). Farben wie in der App.
+       Serifenschrift wie Lora in der App: Mincho, sonst Song (SimSun, unter Windows immer vorhanden). -->
+  <rect width="64" height="64" rx="14" fill="#F6F4F0"/>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.25" fill="none" stroke="#D5CFC6" stroke-width="1.5"/>
+  <text x="29" y="44.5" font-size="36" font-weight="bold" text-anchor="middle" fill="#1F1E1C"
+    font-family="'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif CJK JP', 'MS Mincho', 'SimSun', serif">札</text>
+  <rect x="48" y="47" width="8.5" height="8.5" rx="1.5" fill="#B5432F"/>
+</svg>
