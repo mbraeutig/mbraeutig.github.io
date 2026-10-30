@@ -1,3 +1,15 @@
+// Fuda (札) – die App-Logik. Klassisches Skript ohne Module, damit die Demo auch als file:// läuft.
+// Aufbau:
+//    1. Einstellungen, Demo-Daten, Zustand      8. Begriff: Kopfzeile, Erwähnungen ohne Link
+//    2. Laden: Server oder Demo                  9. Treffer markieren
+//    3. MUSTER (Regeln von Hitokoto)            10. Omnibar: Tippen, Suchen, Anlegen, Vorschläge
+//    4. SUCHE (Suchformen von Hitokoto)         11. Auswahl, Bearbeiten, Papierkorb
+//    5. ?-Übersicht                             12. Meldung und Hilfe
+//    6. Block-Darstellung                       13. AKTIONEN (Klicks über data-action)
+//    7. Stream
+// ============================================================================
+// 1. EINSTELLUNGEN, DEMO-DATEN, ZUSTAND
+// ============================================================================
 // Vom lokalen Fuda-Server ausgeliefert: API relativ. Von woanders (GitHub Pages): API beim lokalen
 // Fuda-Server aus <meta name="fuda-server">. Als lokale Datei (file://) geöffnet: In-Memory-Demo.
 const servedByFuda = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -108,7 +120,7 @@ const toastUndoBtn = document.getElementById('toast-undo');
 const helpPanel = document.getElementById('help-panel');
 
 // ============================================================================
-// 1. INITIALISIERUNG: VERSUCHE NODE.JS SERVER ZU ERREICHEN
+// 2. LADEN: vom Server oder die Demo, Nachladen beim Fensterwechsel, Reihenfolge
 // ============================================================================
 async function initApp() {
   if (useBackend) {
@@ -221,7 +233,7 @@ function mergeNotes(fresh) {
 }
 
 // ============================================================================
-// MUSTER: Code, Tags, Links, Relationen und Definitionen – die Regeln von Hitokoto (dort markup.ts),
+// 3. MUSTER: Code, Tags, Links, Relationen und Definitionen – die Regeln von Hitokoto (dort markup.ts),
 // damit beide Werkzeuge auf denselben Notizen dasselbe erkennen und finden. Sie stehen nur hier;
 // Index, Suche, Vorschläge und Darstellung nutzen dieselben.
 // ============================================================================
@@ -358,7 +370,7 @@ function act(action, arg) {
 }
 
 // ============================================================================
-// SUCHE: genau die Suchformen von Hitokoto (dort search.ts). Was nach "?" steht, ist immer eine Form:
+// 4. SUCHE: genau die Suchformen von Hitokoto (dort search.ts). Was nach "?" steht, ist immer eine Form:
 //   "Wortfolge"    -> ganze Wörter, Groß/klein exakt: ? "VN" findet nicht "VNR"
 //   #tag           -> Blöcke mit diesem Tag
 //   [[Begriff]]    -> Blöcke, die darauf verlinken, auch per Relation; reine Textnennungen nicht
@@ -415,7 +427,7 @@ function definitionFor(query, definitions) {
 }
 
 // ============================================================================
-// 2. ?-INDEX-ANSICHT BERECHNEN (ARTEN/TAGS, BEGRIFFE, VIRTUELLE BEGRIFFE, RELATIONEN)
+// 5. ?-ÜBERSICHT: Arten (Tags), Begriffe, Virtuelle Begriffe, Relationen
 // ============================================================================
 function renderQuestionOverview() {
   // Wie Hitokoto: gezählt wird pro Block, angezeigt in der häufigsten Schreibweise; bei gleicher
@@ -531,7 +543,7 @@ function prefillDefinition(termName) {
 }
 
 // ============================================================================
-// 3. BLOCK-RENDERING (Markdown -> HTML)
+// 6. BLOCK-DARSTELLUNG: Markdown -> HTML, von Hand (kein Markdown-Parser)
 // ============================================================================
 // [[inner]] als Knopf: zeigt linkLabel, sucht linkTarget. Ohne Ziel ([[#Abschnitt]]) bleibt es Text.
 function linkButtonHTML(inner) {
@@ -613,12 +625,75 @@ function renderTable(rows) {
       `;
 }
 
-// pinned: steht als geltende Definition ganz oben. definitions: currentDefinitions() dieses Renderns,
-// damit ein Block weiß, ob er eine frühere Definition ist.
+// Tags aus einer Zeile nehmen (sie erscheinen unten als Pills) und an `tags` anhängen. Inline-Code und
+// Links bleiben unangetastet, darin ist ein "#" kein Tag (dieselbe Regel wie marksOf).
+function takeTags(text, tags) {
+  const kept = [];
+  return text
+    .replace(CODE_OR_LINK, m => `\u0001${kept.push(m) - 1}\u0001`)
+    .replace(TAG, (_, before, name) => { tags.push(name); return ''; })
+    .replace(/\u0001(\d+)\u0001/g, (_, n) => kept[n])
+    .trim();
+}
+
+// Ein Block als HTML: der Editor, wenn er gerade bearbeitet wird, sonst Inhalt (renderContent), Pills für
+// Relationen und Tags und, wenn gewählt, die Aktionsleiste. pinned: steht als geltende Definition ganz
+// oben. definitions: currentDefinitions() dieses Renderns, damit ein Block weiß, ob er eine frühere
+// Definition ist.
 function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {}) {
-  if (editingFilename === note.filename) {
-    // Fehler beim Speichern (Konflikt, Server weg) stehen im Editor, wo man gerade hinschaut
-    return `
+  if (editingFilename === note.filename) return renderEditorHTML(note);
+  const file = note.filename;
+  const { title, html, tags, relations } = renderContent(note.raw);
+
+  // Eine Definition ist „früher“, wenn für ihren Begriff ein später angelegter Block gilt
+  const isOlderDefinition = r => isDefinitionKey(r.key) && definitions.has(r.target.toLowerCase())
+    && definitions.get(r.target.toLowerCase()) !== file;
+  const olderTerms = unique(relations.filter(isOlderDefinition).map(r => r.target));
+  const pills = [...relations.map(r => relationPillHTML(r, isOlderDefinition(r))), ...tags.map(tagPillHTML)].join('');
+  const isSelected = selectedFilename === file;
+
+  // tabindex="-1": nur per Skript fokussierbar, damit der gewählte Block die Tasten bekommt.
+  // scroll-mt/-mb: beim Hineinscrollen frei von der Omnibar oben und der Meldung unten.
+  return `
+        <article
+          id="note-${escapeHtml(file)}"
+          tabindex="-1"
+          data-dblaction="edit" data-arg="${escapeHtml(file)}"
+          class="note-block group relative flow-root rounded-xl p-4 -mx-4 outline-none scroll-mt-36 scroll-mb-20 hover:bg-paper-surface/60 transition-colors cursor-default ${pinned ? 'bg-paper-surface/90 border border-stone-300 shadow-sm mx-0' : ''} ${isSelected ? 'bg-paper-surface/80 ring-2 ring-stone-400/70' : ''}"
+        >
+          ${pinned ? '<div class="text-[11px] font-mono uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1.5"><span>📖 Definition</span></div>' : ''}
+          ${olderTerms.length ? `<div class="text-[11px] font-mono uppercase tracking-wider text-ink-muted mb-1.5" title="Für diesen Begriff gilt ein später angelegter Block">📜 Frühere Definition · ${olderTerms.map(escapeHtml).join(', ')}</div>` : ''}
+
+          <!-- Buttons floaten rechts oben: Titel bzw. erste Textzeile laufen daneben -->
+          <div class="float-right flex items-center gap-1 ml-3">
+            <button
+              ${act('choose', file)}
+              title="Auswählen · ${escapeHtml(file)}"
+              class="px-2 py-1 text-ink-muted hover:text-ink-primary rounded hover:bg-paper-code font-bold leading-none transition-colors ${isSelected ? 'bg-paper-code text-ink-primary' : ''}"
+            >⋮</button>
+          </div>
+
+          ${title ? `<h3 class="font-serif text-xl font-semibold text-ink-primary mb-1.5">${renderInline(title)}</h3>` : ''}
+
+          <div class="space-y-1">
+            ${html}
+          </div>
+
+          ${pills ? `
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              ${pills}
+            </div>
+          ` : ''}
+
+          <!-- AKTIONEN DES GEWÄHLTEN BLOCKS, je mit Tastenkürzel -->
+          ${isSelected ? actionBarHTML(file) : ''}
+        </article>
+      `;
+}
+
+// Der Block als Textfeld. Fehler beim Speichern (Konflikt, Server weg) stehen im Editor, wo man gerade hinschaut.
+function renderEditorHTML(note) {
+  return `
           <article class="rounded-xl p-4 -mx-4 bg-[#FAF9F6] border-2 border-stone-400/70 shadow-sm">
             <div class="flex items-center justify-between mb-2 text-xs text-ink-muted font-mono">
               <span>✏️ Inline-Edit: ${escapeHtml(note.filename)}</span>
@@ -636,166 +711,131 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
             </div>
           </article>
         `;
-  }
+}
 
-  // Code-Blöcke nach derselben Regel wie die Muster (scanFences); ein offener Block reicht bis zum Ende
-  const { lines, blocks } = scanFences(note.raw);
+// Inhalt eines Blocks: Titel (erste Zeile "# …"), die übrigen Zeilen als HTML und die Markierungen, die
+// unten als Pills stehen. Code-Blöcke nach derselben Regel wie die Muster (scanFences); ein offener
+// Block reicht bis zum Ende.
+function renderContent(raw) {
+  const { lines, blocks } = scanFences(raw);
   const blockAt = new Map(blocks.map(b => [b.from, b]));
-  // Titel nur, wenn die Datei selbst einen hat (erste Zeile "# ...")
+  const tags = [];
+  const relations = [];
+  const parts = [];
+
+  // Titel nur, wenn die Datei selbst einen hat (erste Zeile "# ..."); Tags darin werden Pills wie überall
   let title = '';
   let start = 0;
   if (!blockAt.has(0) && lines[0]?.startsWith('# ')) {
-    title = lines[0].slice(2).trim();
+    title = takeTags(lines[0].slice(2), tags);
     start = 1;
   }
-  const relations = [];
-  const tags = [];
-  const contentHtmlParts = [];
 
   for (let i = start; i < lines.length; i++) {
     const block = blockAt.get(i);
     if (block) {
-      contentHtmlParts.push(`
-            <div class="my-2.5 rounded-lg overflow-hidden bg-paper-darkcode shadow-inner">
-              <div class="code-bar flex items-center justify-between px-3.5 pt-2 font-mono text-[11px] text-[#A8A29A]">
-                <span>${escapeHtml(block.lang || 'code')}</span>
-                <button ${act('copy', codeOf(block, lines))} title="Code ohne Fences kopieren" class="hover:text-[#F4F1EA] transition-colors">Kopieren</button>
-              </div>
-              <pre class="text-[#F4F1EA] font-mono text-xs leading-relaxed px-3.5 pb-3.5 pt-1.5 overflow-x-auto"><code>${highlightCode(codeOf(block, lines), block.lang)}</code></pre>
-            </div>
-          `);
+      parts.push(codeBlockHTML(codeOf(block, lines), block.lang));
       i = block.to;
       continue;
     }
 
-    let trimmed = lines[i].trim();
-    if (!trimmed) continue;
-
     // Tabelle: alle aufeinanderfolgenden Zeilen, die mit | beginnen
-    if (trimmed.startsWith('|')) {
+    if (lines[i].trim().startsWith('|')) {
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i++].trim());
       i--;
-      contentHtmlParts.push(renderTable(rows));
+      parts.push(renderTable(rows));
       continue;
     }
 
     // Relation nur am Zeilenanfang (Regel RELATION); der Rest der Zeile ist normaler Text
-    const relation = RELATION.exec(lines[i]);
+    let text = lines[i];
+    const relation = RELATION.exec(text);
     if (relation && linkTarget(relation[2])) {
       relations.push({ key: relation[1], target: linkTarget(relation[2]), label: linkLabel(relation[2]) });
-      trimmed = lines[i].slice(relation[0].length).trim();
+      text = text.slice(relation[0].length);
     }
 
-    // Tags werden zu Pills; Inline-Code und Links bleiben dabei unangetastet
-    const kept = [];
-    trimmed = trimmed
-      .replace(CODE_OR_LINK, m => `\u0001${kept.push(m) - 1}\u0001`)
-      .replace(TAG, (_, before, name) => { tags.push(name); return ''; })
-      .replace(/\u0001(\d+)\u0001/g, (_, n) => kept[n])
-      .trim();
-    if (!trimmed) continue;
+    const rest = takeTags(text.trim(), tags);
+    // Leer oder nur ein Listenzeichen übrig (z. B. "- #offen"): Der Tag steht unten als Pill
+    if (!rest || /^([-*+]|\d+[.)])$/.test(rest)) continue;
+    parts.push(lineHTML(rest, lines[i].search(/\S/)));
+  }
+  return { title, html: parts.join(''), tags, relations };
+}
 
-    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
-    if (heading) {
-      contentHtmlParts.push(`<h4 class="font-serif ${heading[1].length <= 2 ? 'text-lg' : 'text-base'} font-semibold text-ink-primary pt-2">${renderInline(heading[2])}</h4>`);
-      continue;
-    }
-
-    if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
-      contentHtmlParts.push('<hr class="border-paper-border my-2">');
-      continue;
-    }
-
-    const quote = trimmed.match(/^>\s?(.*)$/);
-    if (quote) {
-      contentHtmlParts.push(`<blockquote class="border-l-2 border-stone-300 pl-3 text-sm text-ink-secondary italic leading-relaxed">${renderInline(quote[1])}</blockquote>`);
-      continue;
-    }
-
-    // Listen: -, *, + oder 1. / 1) – optional mit Checkbox [ ] / [x]; Einrückung je 2 Leerzeichen
-    const listItem = trimmed.match(/^([-*+]|\d+[.)])\s+(?:\[([ xX])\]\s+)?(.*)$/);
-    if (listItem) {
-      const [, bullet, box, text] = listItem;
-      const indent = Math.min(Math.floor(lines[i].search(/\S/) / 2), 4);
-      const done = box !== undefined && box !== ' ';
-      const marker = box !== undefined ? (done ? '☑' : '☐') : (/\d/.test(bullet) ? bullet : '•');
-      contentHtmlParts.push(`
-            <div class="flex gap-2 text-sm leading-relaxed ${done ? 'text-ink-muted line-through' : 'text-ink-primary'}" style="padding-left: ${indent * 1.25}rem">
-              <span class="shrink-0 min-w-[1rem] text-ink-muted">${marker}</span>
-              <span>${renderInline(text)}</span>
-            </div>
-          `);
-      continue;
-    }
-
-    contentHtmlParts.push(`<p class="text-sm text-ink-primary leading-relaxed">${renderInline(trimmed)}</p>`);
+// Eine Textzeile ohne Tags: Überschrift, Linie, Zitat, Listenpunkt oder Absatz. indent: führende Leerzeichen
+function lineHTML(text, indent) {
+  const heading = text.match(/^(#{1,6})\s+(.+)$/);
+  if (heading) {
+    return `<h4 class="font-serif ${heading[1].length <= 2 ? 'text-lg' : 'text-base'} font-semibold text-ink-primary pt-2">${renderInline(heading[2])}</h4>`;
   }
 
-  // Eine Definition ist „früher“, wenn für ihren Begriff ein später angelegter Block gilt
-  const isOlderDefinition = r => isDefinitionKey(r.key) && definitions.has(r.target.toLowerCase())
-    && definitions.get(r.target.toLowerCase()) !== note.filename;
-  const olderTerms = unique(relations.filter(isOlderDefinition).map(r => r.target));
+  if (/^(-{3,}|\*{3,})$/.test(text)) return '<hr class="border-paper-border my-2">';
 
-  const relationsHtml = relations.map(r => {
-    const isDef = isDefinitionKey(r.key) && !isOlderDefinition(r);
-    const label = escapeHtml(r.key) + '::';
+  const quote = text.match(/^>\s?(.*)$/);
+  if (quote) {
+    return `<blockquote class="border-l-2 border-stone-300 pl-3 text-sm text-ink-secondary italic leading-relaxed">${renderInline(quote[1])}</blockquote>`;
+  }
+
+  // Listen: -, *, + oder 1. / 1) – optional mit Checkbox [ ] / [x]; Einrückung je 2 Leerzeichen
+  const listItem = text.match(/^([-*+]|\d+[.)])\s+(?:\[([ xX])\](?:\s+|$))?(.*)$/);
+  if (listItem) {
+    const [, bullet, box, itemText] = listItem;
+    const level = Math.min(Math.floor(indent / 2), 4);
+    const done = box !== undefined && box !== ' ';
+    const marker = box !== undefined ? (done ? '☑' : '☐') : (/\d/.test(bullet) ? bullet : '•');
     return `
+            <div class="flex gap-2 text-sm leading-relaxed ${done ? 'text-ink-muted line-through' : 'text-ink-primary'}" style="padding-left: ${level * 1.25}rem">
+              <span class="shrink-0 min-w-[1rem] text-ink-muted">${marker}</span>
+              <span>${renderInline(itemText)}</span>
+            </div>
+          `;
+  }
+
+  return `<p class="text-sm text-ink-primary leading-relaxed">${renderInline(text)}</p>`;
+}
+
+// Code-Block mit Leiste wie in Hitokoto: Sprache links, „Kopieren“ rechts (ohne Fences), Farben über highlightCode
+function codeBlockHTML(code, lang) {
+  return `
+            <div class="my-2.5 rounded-lg overflow-hidden bg-paper-darkcode shadow-inner">
+              <div class="code-bar flex items-center justify-between px-3.5 pt-2 font-mono text-[11px] text-[#A8A29A]">
+                <span>${escapeHtml(lang || 'code')}</span>
+                <button ${act('copy', code)} title="Code ohne Fences kopieren" class="hover:text-[#F4F1EA] transition-colors">Kopieren</button>
+              </div>
+              <pre class="text-[#F4F1EA] font-mono text-xs leading-relaxed px-3.5 pb-3.5 pt-1.5 overflow-x-auto"><code>${highlightCode(code, lang)}</code></pre>
+            </div>
+          `;
+}
+
+// Relation als zweigeteilte Pill: links "name::" (sucht ? name::), rechts das Ziel (sucht ? [[Ziel]]).
+// Die geltende Definition ist bernsteinfarben mit 📖, eine frühere grau mit 📜.
+function relationPillHTML(r, older) {
+  const isDef = isDefinitionKey(r.key) && !older;
+  const label = escapeHtml(r.key) + '::';
+  return `
           <div class="inline-flex items-center rounded-md overflow-hidden border ${isDef ? 'border-amber-400/90' : 'border-stone-300/80'} text-xs">
-            <span ${act('filter', '? ' + r.key + '::')} class="${isDef ? 'bg-amber-100 text-amber-900' : 'bg-[#E6E2DA] text-ink-secondary'} px-2 py-0.5 cursor-pointer hover:brightness-95 font-mono text-[11px]">${isDef ? '📖 ' + label : isOlderDefinition(r) ? '📜 ' + label : label}</span>
+            <span ${act('filter', '? ' + r.key + '::')} class="${isDef ? 'bg-amber-100 text-amber-900' : 'bg-[#E6E2DA] text-ink-secondary'} px-2 py-0.5 cursor-pointer hover:brightness-95 font-mono text-[11px]">${isDef ? '📖 ' + label : older ? '📜 ' + label : label}</span>
             <button ${act('filter', '? [[' + r.target + ']]')} class="bg-paper-surface hover:bg-amber-100/60 text-ink-primary font-medium px-2 py-0.5 transition-colors flex items-center gap-1">
               <span class="text-ink-muted text-[10px]">↗</span> ${escapeHtml(r.label)}
             </button>
           </div>
         `;
-  }).join('');
+}
 
-  const tagsHtml = tags.map(t => `
-        <button ${act('filter', '? #' + t)} class="bg-tag-bg text-tag-text hover:brightness-95 text-xs font-medium px-2.5 py-0.5 rounded-md transition-all">
-          #${escapeHtml(t)}
-        </button>
-      `).join('');
-
-  const isSelected = selectedFilename === note.filename;
-  const file = note.filename;
-  const key = k => `<kbd class="ml-0.5 px-1 bg-paper-code rounded font-mono text-[10px] text-ink-muted">${k}</kbd>`;
-
-  // tabindex="-1": nur per Skript fokussierbar, damit der gewählte Block die Tasten bekommt.
-  // scroll-mt/-mb: beim Hineinscrollen frei von der Omnibar oben und der Meldung unten.
+function tagPillHTML(tag) {
   return `
-        <article
-          id="note-${escapeHtml(note.filename)}"
-          tabindex="-1"
-          data-dblaction="edit" data-arg="${escapeHtml(file)}"
-          class="note-block group relative flow-root rounded-xl p-4 -mx-4 outline-none scroll-mt-36 scroll-mb-20 hover:bg-paper-surface/60 transition-colors cursor-default ${pinned ? 'bg-paper-surface/90 border border-stone-300 shadow-sm mx-0' : ''} ${isSelected ? 'bg-paper-surface/80 ring-2 ring-stone-400/70' : ''}"
-        >
-          ${pinned ? '<div class="text-[11px] font-mono uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1.5"><span>📖 Definition</span></div>' : ''}
-          ${olderTerms.length ? `<div class="text-[11px] font-mono uppercase tracking-wider text-ink-muted mb-1.5" title="Für diesen Begriff gilt ein später angelegter Block">📜 Frühere Definition · ${olderTerms.map(escapeHtml).join(', ')}</div>` : ''}
+        <button ${act('filter', '? #' + tag)} class="bg-tag-bg text-tag-text hover:brightness-95 text-xs font-medium px-2.5 py-0.5 rounded-md transition-all">
+          #${escapeHtml(tag)}
+        </button>
+      `;
+}
 
-          <!-- Buttons floaten rechts oben: Titel bzw. erste Textzeile laufen daneben -->
-          <div class="float-right flex items-center gap-1 ml-3">
-            <button
-              ${act('choose', file)}
-              title="Auswählen · ${escapeHtml(note.filename)}"
-              class="px-2 py-1 text-ink-muted hover:text-ink-primary rounded hover:bg-paper-code font-bold leading-none transition-colors ${isSelected ? 'bg-paper-code text-ink-primary' : ''}"
-            >⋮</button>
-          </div>
-
-          ${title ? `<h3 class="font-serif text-xl font-semibold text-ink-primary mb-1.5">${renderInline(title)}</h3>` : ''}
-
-          <div class="space-y-1">
-            ${contentHtmlParts.join('')}
-          </div>
-
-          ${(relationsHtml || tagsHtml) ? `
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-              ${relationsHtml}
-              ${tagsHtml}
-            </div>
-          ` : ''}
-
-          <!-- AKTIONEN DES GEWÄHLTEN BLOCKS, je mit Tastenkürzel -->
-          ${isSelected ? `
+// Aktionen des gewählten Blocks, je mit Tastenkürzel
+function actionBarHTML(file) {
+  const key = k => `<kbd class="ml-0.5 px-1 bg-paper-code rounded font-mono text-[10px] text-ink-muted">${k}</kbd>`;
+  return `
             <div class="mt-3.5 pt-2.5 border-t border-paper-border flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary bg-[#EAE6DF]/60 -mx-4 -mb-4 px-4 py-2.5 rounded-b-xl">
               <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                 <button ${act('edit', file)} title="Bearbeiten (E)" class="hover:text-ink-primary flex items-center gap-1 font-medium transition-colors">
@@ -815,13 +855,11 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
                 ✕ ${key('Esc')}
               </button>
             </div>
-          ` : ''}
-        </article>
-      `;
+          `;
 }
 
 // ============================================================================
-// 4. STREAM RENDERN ODER ?-INDEX-VIEW ANZEIGEN
+// 7. STREAM: Tagesgruppen oder Treffer, Definition oben, oder die ?-Übersicht
 // ============================================================================
 // Suche nur mit "?" ganz am Anfang: " ?…" mit Leerzeichen davor schreibt einen Block, der mit "?" beginnt
 function isSearchInput() {
@@ -988,7 +1026,7 @@ function renderTargetGroups(list, query, definitions) {
           <div class="divide-y divide-paper-border/60">
             ${groupNotes.map(n => `
               <div class="py-2 first:pt-0 last:pb-0">
-                <div class="text-[11px] uppercase tracking-wider text-ink-muted mb-0.5">${escapeHtml(formatDayLabel(createdAt(n)))}</div>
+                ${dayLabelHTML(n)}
                 ${renderBlockHTML(n, { definitions })}
               </div>`).join('')}
           </div>
@@ -997,7 +1035,7 @@ function renderTargetGroups(list, query, definitions) {
 }
 
 // ============================================================================
-// BEGRIFF: Kopfzeile und Erwähnungen ohne Link (bei ? [[Begriff]])
+// 8. BEGRIFF: Kopfzeile und Erwähnungen ohne Link (bei ? [[Begriff]])
 // ============================================================================
 let mentionsOpen = false;
 
@@ -1039,6 +1077,11 @@ function renderTermHeader(query, linked, mentions, definitions) {
       `;
 }
 
+// Kleines Tages-Label über einem Block, wo keine Tagesüberschrift steht (Gruppen bei ? zu::, Erwähnungen)
+function dayLabelHTML(note) {
+  return `<div class="text-[11px] uppercase tracking-wider text-ink-muted mb-0.5">${escapeHtml(formatDayLabel(createdAt(note)))}</div>`;
+}
+
 // Unter den Treffern, eingeklappt: Wo fehlt vielleicht ein [[Link]]?
 function renderMentions(mentions, definitions) {
   return `
@@ -1050,7 +1093,7 @@ function renderMentions(mentions, definitions) {
             <div class="mt-3 divide-y divide-paper-border/60 opacity-90">
               ${mentions.slice(0, PAGE_SIZE).map(n => `
                 <div class="py-2 first:pt-0 last:pb-0">
-                  <div class="text-[11px] uppercase tracking-wider text-ink-muted mb-0.5">${escapeHtml(formatDayLabel(createdAt(n)))}</div>
+                  ${dayLabelHTML(n)}
                   ${renderBlockHTML(n, { definitions })}
                 </div>`).join('')}
             </div>` : ''}
@@ -1065,7 +1108,7 @@ function toggleMentions(open = !mentionsOpen) {
 }
 
 // ============================================================================
-// TREFFER MARKIEREN (wie Hitokoto): die Wörter der Textsuche (Umlaut-tolerant, „geklaert“ markiert
+// 9. TREFFER MARKIEREN (wie Hitokoto): die Wörter der Textsuche (Umlaut-tolerant, „geklaert“ markiert
 // „geklärt“) und die Wortfolge von "…". Bei #tag, [[Begriff]] und name:: nichts – die Knöpfe sind farbig.
 // ============================================================================
 function highlightHits(root, query) {
@@ -1124,7 +1167,7 @@ function hitRanges(text, query) {
 }
 
 // ============================================================================
-// 5. OMNIBAR EVENTS & CRUD-AKTIONEN
+// 10. OMNIBAR: Tippen, Suchen, Anlegen, Vorschläge, Tastenkürzel
 // ============================================================================
 omnibar.addEventListener('input', () => {
   omnibar.style.height = 'auto';
@@ -1395,7 +1438,7 @@ omnibar.addEventListener('blur', hideAutocomplete);
 acBox.addEventListener('mousedown', e => e.preventDefault());
 
 // ============================================================================
-// 6. AUSWAHL & TASTATUR (Verhalten wie Hitokoto)
+// 11. AUSWAHL, BEARBEITEN, PAPIERKORB (Verhalten wie Hitokoto)
 // ============================================================================
 // Der gewählte Block zeigt seine Aktionen, holt sich den Fokus und scrollt in Sicht
 function selectBlock(filename) {
@@ -1590,7 +1633,7 @@ function clearOmnibar() {
 }
 
 // ============================================================================
-// 7. MELDUNG (TOAST) & HILFE
+// 12. MELDUNG (TOAST) & HILFE
 // ============================================================================
 const TOAST_MS = 5000;
 let toastTimer = null;
@@ -1633,7 +1676,7 @@ function closeHelp() {
 }
 
 // ============================================================================
-// 8. AKTIONEN: Klicks auf Elemente mit data-action (erzeugt von act()) und in index.html
+// 13. AKTIONEN: Klicks auf Elemente mit data-action (erzeugt von act()) und in index.html
 // ============================================================================
 // Ein Listener statt onclick="…": So braucht die CSP kein 'unsafe-inline' für Skripte, und selbst ein
 // eingeschleustes Attribut in einer Notiz führt kein Skript aus. Das innerste Element mit Aktion gewinnt.
@@ -1665,13 +1708,20 @@ function runAction(el, action) {
   ACTIONS[action]?.(el.dataset.arg);
 }
 
+// Ob die letzten beiden Klicks etwas Klickbares trafen (Aktion oder Link). Ein Doppelklick besteht aus
+// genau diesen beiden: Traf einer davon einen Knopf, bearbeitet er nicht zusätzlich – auch nicht, wenn
+// der erste Klick die Liste neu gebaut hat und der zweite schon einen anderen Block trifft.
+let lastClicks = [false, false];
+
 document.addEventListener('click', (e) => {
-  const el = e.target.closest?.('[data-action]');
-  if (el) runAction(el, el.dataset.action);
+  const el = e.target.closest?.('[data-action], a');
+  lastClicks = [lastClicks[1], Boolean(el)];
+  if (el?.dataset.action) runAction(el, el.dataset.action);
 });
 
-// Doppelklick auf einen Block: bearbeiten
+// Doppelklick auf den Text eines Blocks: bearbeiten (Fuda; in Hitokoto sucht er das Wort)
 document.addEventListener('dblclick', (e) => {
+  if (lastClicks.includes(true)) return;
   const el = e.target.closest?.('[data-dblaction]');
   if (el) runAction(el, el.dataset.dblaction);
 });
