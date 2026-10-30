@@ -567,16 +567,6 @@ Zugang: steht im Passwort-Tresor, nicht in Notizen
       return current;
     }
 
-    function extractSubtitleHint(raw, title) {
-      if (title.toLowerCase() !== 'testuser') return '';
-      const nameMatch = raw.match(/^(?:Name|User-ID):\s*(.+)$/m);
-      const rzbkMatch = raw.match(/^RZBK:\s*(.+)$/m);
-      const parts = [];
-      if (nameMatch) parts.push(nameMatch[1].trim());
-      if (rzbkMatch) parts.push('RZBK ' + rzbkMatch[1].trim());
-      return parts.join(' · ');
-    }
-
     function escapeHtml(str) {
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -847,8 +837,6 @@ Zugang: steht im Passwort-Tresor, nicht in Notizen
         title = lines[0].slice(2).trim();
         start = 1;
       }
-
-      const subtitleHint = title ? extractSubtitleHint(note.raw, title) : '';
       const relations = [];
       const tags = [];
       const contentHtmlParts = [];
@@ -998,12 +986,7 @@ Zugang: steht im Passwort-Tresor, nicht in Notizen
             >⋮</button>
           </div>
 
-          ${title ? `
-            <div class="flex items-baseline gap-2.5 flex-wrap mb-1.5">
-              <h3 class="font-serif text-xl font-semibold text-ink-primary">${renderInline(title)}</h3>
-              ${subtitleHint ? `<span class="text-xs font-mono text-ink-muted">${escapeHtml(subtitleHint)}</span>` : ''}
-            </div>
-          ` : ''}
+          ${title ? `<h3 class="font-serif text-xl font-semibold text-ink-primary mb-1.5">${renderInline(title)}</h3>` : ''}
 
           <div class="space-y-1">
             ${contentHtmlParts.join('')}
