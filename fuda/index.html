@@ -39,6 +39,18 @@
     .help-table td:first-child { white-space: nowrap; }
     #help-panel code, #help-panel kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
     #help-panel kbd { padding: 0 4px; background: #EAE6DF; border-radius: 4px; }
+    /* Farben in Code-Blöcken (highlight.js), warm auf dem Espresso-Grund, Kontrast mindestens 4,5:1 */
+    .hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-doctag { color: #E3A869; }
+    .hljs-string, .hljs-regexp, .hljs-addition, .hljs-template-tag { color: #A9C68A; }
+    .hljs-number, .hljs-symbol, .hljs-bullet { color: #DD9A74; }
+    .hljs-comment, .hljs-quote { color: #A39C90; font-style: italic; }
+    .hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: #E9CB86; }
+    .hljs-type, .hljs-built_in, .hljs-class .hljs-title { color: #93BCCB; }
+    .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable, .hljs-property { color: #D2BC94; }
+    .hljs-meta, .hljs-meta .hljs-keyword, .hljs-tag { color: #BBA6CF; }
+    .hljs-deletion { color: #E2A3A3; }
+    .hljs-emphasis { font-style: italic; }
+    .hljs-strong { font-weight: 600; }
   </style>
 </head>
 <body class="font-sans antialiased min-h-screen py-10 px-4 sm:px-6">
@@ -117,7 +129,7 @@
     <table class="help-table">
       <tr><td><kbd>Enter</kbd></td><td>Einzeiler als neuen Block speichern; in einem offenen Code-Block (<code>```</code> oder <code>~~~</code>) neue Zeile</td></tr>
       <tr><td><kbd>Shift+Enter</kbd></td><td>neue Zeile; danach speichert <kbd>Strg+Enter</kbd></td></tr>
-      <tr><td><code>~~~java</code></td><td>Code-Block wie mit <code>```</code>, auf der deutschen Tastatur leichter: <kbd>AltGr</kbd>+<kbd>+</kbd> ist keine Tottaste. Am Ende wieder <code>~~~</code> auf eigener Zeile.</td></tr>
+      <tr><td><code>~~~java</code></td><td>Code-Block wie mit <code>```</code>, auf der deutschen Tastatur leichter: <kbd>AltGr</kbd>+<kbd>+</kbd> ist keine Tottaste. Am Ende wieder <code>~~~</code> auf eigener Zeile. Mit Sprache (<code>java</code>, <code>sql</code>, <code>bash</code> …) bekommt der Code Farben.</td></tr>
       <tr><td><kbd>?</kbd> am Anfang</td><td>suchen statt speichern</td></tr>
       <tr><td>Leerzeichen, dann <kbd>?</kbd></td><td>ein Block, der mit „?“ beginnt</td></tr>
       <tr><td><code>#</code> oder <code>[[</code></td><td>Vorschläge; <kbd>Tab</kbd> übernimmt (oder <kbd>↓</kbd>/<kbd>↑</kbd> und <kbd>Enter</kbd>)</td></tr>
@@ -182,6 +194,7 @@
     <p>Entfernte Blöcke liegen in <code>blocks/.papierkorb/</code>. Endgültig weg sind sie erst, wenn du sie dort löschst.</p>
 
     <h3 class="help-h">Mehr</h3>
+    <p>Aus dem Terminal: <code>fu "Text"</code>, mit Pipe: <code>mvn test 2&gt;&amp;1 | fu "Testfehler #bug"</code> (Ausgabe als Code-Block).</p>
     <p>Beispiele und Best Practices stehen in <code>ANLEITUNG.md</code> im Fuda-Ordner.</p>
 
     <p class="mt-3 font-medium">Keine Passwörter, PINs oder Tokens ablegen – die Dateien liegen im Klartext auf der Platte.</p>
@@ -189,6 +202,8 @@
     <button id="help-close" type="button" data-action="closeHelp" class="mt-4 text-sm text-ink-secondary hover:text-ink-primary underline">Schließen</button>
   </div>
 
+  <!-- Farben für Code-Blöcke (BSD-3-Clause, vendor/README.md); muss vor app.js stehen -->
+  <script src="vendor/highlight-11.11.1.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

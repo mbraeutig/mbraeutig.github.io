@@ -545,6 +545,24 @@ function inlineCodeHTML(code) {
   return `<code ${act('copyInline', code)} title="Klicken zum Kopieren" class="font-mono text-[0.85em] bg-paper-code hover:bg-stone-300/80 px-1 py-0.5 rounded cursor-pointer">${escapeHtml(code)}</code>`;
 }
 
+// Farben für Code-Blöcke mit Sprache (```java, ~~~sql), von highlight.js aus vendor/; die Farben stehen
+// in index.html (.hljs-…). Ohne bekannte Sprache, ohne highlight.js (Tests) oder bei einem Fehler nur
+// escapt. highlight.js escapt den Code selbst. Gemerkt, weil renderStream den ganzen Stream neu baut.
+const highlighted = new Map();
+function highlightCode(code, lang) {
+  if (!lang || typeof hljs === 'undefined' || !hljs.getLanguage(lang)) return escapeHtml(code);
+  const key = `${lang.toLowerCase()}\n${code}`;
+  if (!highlighted.has(key)) {
+    if (highlighted.size > 2000) highlighted.clear();
+    try {
+      highlighted.set(key, hljs.highlight(code, { language: lang, ignoreIllegals: true }).value);
+    } catch {
+      return escapeHtml(code);
+    }
+  }
+  return highlighted.get(key);
+}
+
 function anchorHTML(url, label) {
   return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-[#3D5A45] underline decoration-[#3D5A45]/40 hover:decoration-[#3D5A45] break-all">${label}</a>`;
 }
@@ -643,7 +661,7 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
                 <span>${escapeHtml(block.lang || 'code')}</span>
                 <button ${act('copy', codeOf(block, lines))} title="Code ohne Fences kopieren" class="hover:text-[#F4F1EA] transition-colors">Kopieren</button>
               </div>
-              <pre class="text-[#F4F1EA] font-mono text-xs leading-relaxed px-3.5 pb-3.5 pt-1.5 overflow-x-auto"><code>${escapeHtml(codeOf(block, lines))}</code></pre>
+              <pre class="text-[#F4F1EA] font-mono text-xs leading-relaxed px-3.5 pb-3.5 pt-1.5 overflow-x-auto"><code>${highlightCode(codeOf(block, lines), block.lang)}</code></pre>
             </div>
           `);
       i = block.to;
