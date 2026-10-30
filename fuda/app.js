@@ -551,14 +551,22 @@ function anchorHTML(url, label) {
 
 // Inline-Markdown: `code`, [[Begriff]], [Text](url), nackte URLs, **fett**, *kursiv*
 // Unterstriche bleiben bewusst Text, damit snake_case-Bezeichner nicht kursiv werden.
-const INLINE_PATTERN = /`([^`]+)`|\[\[(.+?)\]\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]])|\*\*(.+?)\*\*|(?<![\w*])\*(?![\s*])(.+?)(?<!\s)\*(?![\w*])/g;
+// Code nach INLINE_CODE (Abschnitt MUSTER), damit als Code gezeigt wird, was als Code zählt
+const INLINE_PATTERN = new RegExp(`${INLINE_CODE.source}|${/\[\[(.+?)\]\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]])|\*\*(.+?)\*\*|(?<![\w*])\*(?![\s*])(.+?)(?<!\s)\*(?![\w*])/.source}`, 'g');
+
+// Inhalt eines Inline-Codes ohne die Backticks. Wie in Markdown fällt innen je ein Leerzeichen weg,
+// wenn auf beiden Seiten eines steht: `` `x` `` zeigt `x`.
+function codeSpanText(span, ticks) {
+  const inner = span.slice(ticks.length, -ticks.length);
+  return inner.length > 1 && inner.startsWith(' ') && inner.endsWith(' ') && inner.trim() ? inner.slice(1, -1) : inner;
+}
 
 function renderInline(text) {
   let html = '';
   let last = 0;
   for (const m of text.matchAll(INLINE_PATTERN)) {
     html += escapeHtml(text.slice(last, m.index));
-    if (m[1] !== undefined) html += inlineCodeHTML(m[1]);
+    if (m[1] !== undefined) html += inlineCodeHTML(codeSpanText(m[0], m[1]));
     else if (m[2] !== undefined) html += linkButtonHTML(m[2]);
     else if (m[3] !== undefined) html += anchorHTML(m[4], escapeHtml(m[3]));
     else if (m[5] !== undefined) html += anchorHTML(m[5], escapeHtml(m[5]));
