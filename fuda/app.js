@@ -1800,7 +1800,14 @@ async function undoToast() {
 }
 
 // Die Hilfe holt sich den Fokus, damit Esc sie schließt und nicht das Feld leert
+// Welche Fassung läuft: "lokal" kommt aus dem Fuda-Ordner (Server oder Demo, immer der aktuelle Stand),
+// sonst setzt publish.js Hash und Datum des Commits ein (<meta name="fuda-version">)
+function versionText(version) {
+  return !version || version === 'lokal' ? 'Version: lokal aus dem Fuda-Ordner, immer der aktuelle Stand' : `Version ${version}`;
+}
+
 function openHelp() {
+  document.getElementById('help-version').textContent = versionText(document.querySelector('meta[name="fuda-version"]')?.content);
   helpPanel.classList.remove('hidden');
   document.getElementById('help-close').focus({ preventScroll: true });
 }
