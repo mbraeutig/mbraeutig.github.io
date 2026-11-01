@@ -34,6 +34,11 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #D5CFC6; border-radius: 3px; }
     mark.hit { background: #FCE7A6; color: inherit; border-radius: 2px; padding: 0 1px; }
+    /* Eingeklappt (wie Hitokoto N-06): nur die Höhe ist begrenzt, der Text bleibt ganz, die letzte Zeile
+       blendet aus. Eine Zeile = text-sm mit leading-relaxed plus space-y-1. Feste Regel statt Tailwind-Klasse:
+       Tailwind erzeugt seine Stile erst nach dem Rendern, das Messen verdeckter Treffer braucht sie sofort. */
+    .folded { max-height: calc(var(--fold-lines) * (0.875rem * 1.625 + 0.25rem)); overflow: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent); mask-image: linear-gradient(to bottom, black 75%, transparent); }
     .help-h { margin: 1rem 0 0.25rem; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #9C968E; }
     .help-table td { padding: 2px 12px 2px 0; vertical-align: top; }
     .help-table td:first-child { white-space: nowrap; }
@@ -189,6 +194,7 @@
       <tr><td><kbd>C</kbd></td><td>ganzen Block als Markdown kopieren</td></tr>
       <tr><td><kbd>O</kbd></td><td>im Editor öffnen</td></tr>
       <tr><td><kbd>Entf</kbd></td><td>in den Papierkorb, mit „Rückgängig“</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>langen Block auf- und zuklappen (ab 9 Zeilen eingeklappt; ein verdeckter Suchtreffer klappt von selbst auf)</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Auswahl beenden</td></tr>
       <tr><td><kbd>Strg+K</kbd></td><td>ins Feld springen</td></tr>
       <tr><td><kbd>F1</kbd></td><td>diese Hilfe</td></tr>

@@ -656,10 +656,42 @@ function takeTags(text, tags) {
 // Relationen und Tags und, wenn gewählt, die Aktionsleiste. pinned: steht als geltende Definition ganz
 // oben. definitions: currentDefinitions() dieses Renderns, damit ein Block weiß, ob er eine frühere
 // Definition ist.
+// Einklappen wie Hitokoto (N-06): Mehr als FOLD_LINES angezeigte Zeilen (ohne Titel, Pills und Leerzeilen)
+// werden per CSS auf diese Höhe begrenzt (.folded in index.html), der Text bleibt ganz. Titel und Pills
+// bleiben sichtbar, die angeheftete Definition klappt nie ein. Wer auf- oder zuklappt, behält seine Wahl
+// (foldChoice); sonst klappt ein Block auf, wenn das Einklappen einen Suchtreffer verdeckt (hitOpen, je Suche).
+const FOLD_LINES = 8;
+const foldChoice = new Map(); // Dateiname -> true (auf) / false (zu)
+const hitOpen = new Set();    // Dateinamen, die bei dieser Suche wegen eines verdeckten Treffers offen sind
+
+function toggleFold(file) {
+  foldChoice.set(file, !(foldChoice.get(file) ?? hitOpen.has(file)));
+  renderStream();
+  if (selectedFilename === file) document.getElementById(`note-${file}`)?.focus({ preventScroll: true });
+}
+
+// Nach dem Markieren, einen Frame später (dann stehen auch Tailwinds Stile): Liegt eine Markierung unter
+// der Einklapphöhe oder in der ausgeblendeten letzten Zeile, klappt der Block auf, ohne neu zu rendern.
+function openHiddenHits() {
+  for (const body of streamEl.querySelectorAll('.folded')) {
+    const file = body.dataset.fold;
+    if (foldChoice.has(file)) continue;
+    const box = body.getBoundingClientRect();
+    const hidden = [...body.querySelectorAll('mark.hit')].some(m => m.getBoundingClientRect().bottom > box.bottom - box.height / 4);
+    if (!hidden) continue;
+    hitOpen.add(file);
+    body.classList.remove('folded');
+    const button = body.nextElementSibling;
+    if (button?.dataset.action === 'toggleFold') button.textContent = 'einklappen';
+  }
+}
+
 function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {}) {
   if (editingFilename === note.filename) return renderEditorHTML(note);
   const file = note.filename;
-  const { title, html, tags, relations } = renderContent(note.raw);
+  const { title, html, tags, relations, lines } = renderContent(note.raw);
+  const long = !pinned && lines > FOLD_LINES;
+  const open = foldChoice.get(file) ?? hitOpen.has(file);
 
   // Eine Definition ist „früher“, wenn für ihren Begriff ein später angelegter Block gilt
   const isOlderDefinition = r => isDefinitionKey(r.key) && definitions.has(r.target.toLowerCase())
@@ -691,9 +723,10 @@ function renderBlockHTML(note, { pinned = false, definitions = new Map() } = {})
 
           ${title ? `<h3 class="font-serif text-xl font-semibold text-ink-primary mb-1.5">${renderInline(title)}</h3>` : ''}
 
-          <div class="space-y-1">
+          <div class="space-y-1 ${long && !open ? 'folded' : ''}" data-fold="${escapeHtml(file)}" style="--fold-lines: ${FOLD_LINES}">
             ${html}
           </div>
+          ${long ? `<button ${act('toggleFold', file)} class="mt-1 text-xs text-ink-muted hover:text-ink-primary">${open ? 'einklappen' : `aufklappen · ${lines} Zeilen`}</button>` : ''}
 
           ${pills ? `
             <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -738,6 +771,7 @@ function renderContent(raw) {
   const tags = [];
   const relations = [];
   const parts = [];
+  let shown = 0; // angezeigte Zeilen ohne Titel (fürs Einklappen): Text-, Code- und Tabellenzeilen einzeln
 
   // Titel nur, wenn die Datei selbst einen hat (erste Zeile "# ..."); Tags darin werden Pills wie überall
   let title = '';
@@ -750,7 +784,9 @@ function renderContent(raw) {
   for (let i = start; i < lines.length; i++) {
     const block = blockAt.get(i);
     if (block) {
-      parts.push(codeBlockHTML(codeOf(block, lines), block.lang));
+      const code = codeOf(block, lines);
+      parts.push(codeBlockHTML(code, block.lang));
+      shown += code ? code.split('\n').length : 1;
       i = block.to;
       continue;
     }
@@ -761,6 +797,7 @@ function renderContent(raw) {
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i++].trim());
       i--;
       parts.push(renderTable(rows));
+      shown += rows.length - (rows.length > 1 && /^[|\s:-]+$/.test(rows[1]) ? 1 : 0); // ohne Trennzeile
       continue;
     }
 
@@ -776,8 +813,9 @@ function renderContent(raw) {
     // Leer oder nur ein Listenzeichen übrig (z. B. "- #offen"): Der Tag steht unten als Pill
     if (!rest || /^([-*+]|\d+[.)])$/.test(rest)) continue;
     parts.push(lineHTML(rest, lines[i].search(/\S/)));
+    shown++;
   }
-  return { title, html: parts.join(''), tags, relations };
+  return { title, html: parts.join(''), tags, relations, lines: shown };
 }
 
 // Eine Textzeile ohne Tags: Überschrift, Linie, Zitat, Listenpunkt oder Absatz. indent: führende Leerzeichen
@@ -908,6 +946,7 @@ function renderStream() {
     selectedFilename = null;
     mentionsOpen = false;
     edgesOpen = false;
+    hitOpen.clear();
   }
 
   // FALL A: Nur "?" eingegeben -> Zeige die Index-View (Arten, Begriffe, Virtuelle Begriffe, Relationen)
@@ -994,6 +1033,7 @@ function renderStream() {
   if (query) {
     highlightHits(defSlotEl, query);
     highlightHits(streamEl, query);
+    window.requestAnimationFrame?.(openHiddenHits);
   }
 }
 
@@ -1325,6 +1365,8 @@ window.addEventListener('keydown', (e) => {
     c: () => copyBlock(file),
     o: () => openExternalEditor(file),
     e: () => startInlineEdit(file),
+    // Langen Block auf- und zuklappen (wie Hitokoto); über seinen Knopf, den nur ein langer Block hat
+    Enter: () => document.getElementById(`note-${file}`)?.querySelector('[data-action="toggleFold"]')?.click(),
   };
   const action = actions[e.key.length === 1 ? e.key.toLowerCase() : e.key];
   if (!action) return;
@@ -1890,6 +1932,7 @@ const ACTIONS = {
   openMentions: () => toggleMentions(true),
   toggleMentions: () => toggleMentions(),
   toggleEdges: () => toggleEdges(),
+  toggleFold: file => toggleFold(file),
   autocomplete: index => applyAutocomplete(Number(index)),
   clearOmnibar: () => clearOmnibar(),
   undoToast: () => undoToast(),
