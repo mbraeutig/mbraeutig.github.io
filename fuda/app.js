@@ -1525,7 +1525,8 @@ function updateAutocomplete() {
     suggestions = [...allTargets].filter(t => t.toLowerCase().includes(q));
   }
 
-  if (suggestions.length === 0) {
+  // Nichts zu vervollständigen: keine Vorschläge, oder der einzige ist genau das Getippte
+  if (suggestions.length === 0 || (suggestions.length === 1 && suggestions[0].toLowerCase() === replacePrefix.toLowerCase())) {
     hideAutocomplete();
     return;
   }
@@ -1751,6 +1752,7 @@ function filterBy(searchStr) {
   history.pushState({ search: searchStr.trim() }, '');
   omnibar.value = searchStr;
   omnibar.dispatchEvent(new Event('input'));
+  hideAutocomplete(); // ein Klick ist eine fertige Wahl: keine Vorschläge zu "? #tag"
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
