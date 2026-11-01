@@ -332,6 +332,9 @@ function isDefinitionKey(key) {
   return key.toLowerCase() === DEFINITION_KEY;
 }
 
+// Namen alphabetisch wie Hitokotos Begriffsliste: deutsch, Groß/klein egal, Zahlen numerisch (ANT-2 vor ANT-10)
+const byName = (a, b) => a.localeCompare(b, 'de', { sensitivity: 'base', numeric: true });
+
 // Ohne Dubletten, Groß/klein egal; es bleibt die erste Schreibweise
 function unique(list) {
   const seen = new Set();
@@ -443,8 +446,8 @@ function definitionFor(query, definitions) {
 // 5. ?-ÜBERSICHT: Arten (Tags), Begriffe, Virtuelle Begriffe, Relationen
 // ============================================================================
 function renderQuestionOverview() {
-  // Wie Hitokoto: gezählt wird pro Block, angezeigt in der häufigsten Schreibweise; bei gleicher
-  // Anzahl in der Reihenfolge des ersten Vorkommens (darum älteste Blöcke zuerst durchgehen).
+  // Wie Hitokoto: gezählt wird pro Block, angezeigt in der häufigsten Schreibweise (bei gleich häufigen
+  // die zuerst vorkommende, darum älteste Blöcke zuerst durchgehen).
   // Jeweils: kleingeschriebener Schlüssel -> { name, count (Anzahl Blöcke), spellings }
   const tagCounts = new Map();
   const linkCounts = new Map();        // alle [[Links]], auch die in Relationen
@@ -474,12 +477,13 @@ function renderQuestionOverview() {
     else virtualList.push(link);
   }
 
-  // Sortieren nach Häufigkeit absteigend
-  const byCount = (a, b) => b.count - a.count;
-  const sortedTags = [...tagCounts.values()].sort(byCount);
-  definedList.sort(byCount);
-  virtualList.sort(byCount);
-  const sortedRels = [...relationCounts.values()].sort(byCount);
+  // Fuda: jeder Abschnitt alphabetisch, die Anzahl steht dahinter (Hitokotos overview() sortiert nach
+  // Häufigkeit, seine Begriffsliste nach Name). Die Einträge und Zahlen bleiben die von Hitokoto.
+  const alphabetical = (a, b) => byName(a.name, b.name);
+  const sortedTags = [...tagCounts.values()].sort(alphabetical);
+  definedList.sort(alphabetical);
+  virtualList.sort(alphabetical);
+  const sortedRels = [...relationCounts.values()].sort(alphabetical);
 
   return `
         <!-- Sektion 1: ARTEN (Tags) -->
@@ -1192,7 +1196,6 @@ function termEdges(key, definitions) {
     }
   }
   const loose = e => LOOSE_KEYS.includes(e.key.toLowerCase());
-  const byName = (a, b) => a.localeCompare(b, 'de', { sensitivity: 'base', numeric: true });
   outgoing.sort((a, b) => loose(a) - loose(b));
   incoming.sort((a, b) => loose(a) - loose(b) || byName(a.key, b.key) || byName(a.subject, b.subject));
   return { outgoing, incoming };
