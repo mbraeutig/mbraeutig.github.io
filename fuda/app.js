@@ -592,10 +592,12 @@ function anchorHTML(url, label) {
   return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-[#3D5A45] underline decoration-[#3D5A45]/40 hover:decoration-[#3D5A45] break-all">${label}</a>`;
 }
 
-// Inline-Markdown: `code`, [[Begriff]], [Text](url), nackte URLs, **fett**, *kursiv*
-// Unterstriche bleiben bewusst Text, damit snake_case-Bezeichner nicht kursiv werden.
+// Inline-Markdown: `code`, [[Begriff]], [Text](url), nackte URLs, **fett**, *kursiv*, ~~durchgestrichen~~
+// Unterstriche bleiben bewusst Text, damit snake_case-Bezeichner nicht kursiv werden. ~~ wie in Hitokoto
+// (marked, GFM) für veraltete Werte: innen nicht mit Leerraum beginnend oder endend, nie drei Tilden.
+// Einzelne ~ bleiben Text (anders als marked), damit „ca. ~5 bis ~10“ nicht durchgestrichen wird.
 // Code nach INLINE_CODE (Abschnitt MUSTER), damit als Code gezeigt wird, was als Code zählt
-const INLINE_PATTERN = new RegExp(`${INLINE_CODE.source}|${/\[\[(.+?)\]\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]])|\*\*(.+?)\*\*|(?<![\w*])\*(?![\s*])(.+?)(?<!\s)\*(?![\w*])/.source}`, 'g');
+const INLINE_PATTERN = new RegExp(`${INLINE_CODE.source}|${/\[\[(.+?)\]\]|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]])|\*\*(.+?)\*\*|(?<![\w*])\*(?![\s*])(.+?)(?<!\s)\*(?![\w*])|(?<!~)~~(?![\s~])(.+?)(?<![\s~])~~(?!~)/.source}`, 'g');
 
 // Inhalt eines Inline-Codes ohne die Backticks. Wie in Markdown fällt innen je ein Leerzeichen weg,
 // wenn auf beiden Seiten eines steht: `` `x` `` zeigt `x`.
@@ -614,7 +616,8 @@ function renderInline(text) {
     else if (m[3] !== undefined) html += anchorHTML(m[4], escapeHtml(m[3]));
     else if (m[5] !== undefined) html += anchorHTML(m[5], escapeHtml(m[5]));
     else if (m[6] !== undefined) html += `<strong class="font-semibold">${renderInline(m[6])}</strong>`;
-    else html += `<em>${renderInline(m[7])}</em>`;
+    else if (m[7] !== undefined) html += `<em>${renderInline(m[7])}</em>`;
+    else html += `<del class="text-ink-muted decoration-ink-muted/70">${renderInline(m[8])}</del>`;
     last = m.index + m[0].length;
   }
   return html + escapeHtml(text.slice(last));
