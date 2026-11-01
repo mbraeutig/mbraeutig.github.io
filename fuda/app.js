@@ -67,7 +67,7 @@ zu:: [[Geschäftsartenbezugszahl]]
     raw: `# Immo-DV Jobs
 Jobs laufen an jedem Montag, Mittwoch und Freitag des Monats SOWIE zusätzlich am 16. Tag jedes Monats (unabhängig davon, welcher Wochentag der 16. ist), jeweils um 10:00 Uhr.
 
-definition:: [[Immo-DV]]
+definiert:: [[Immo-DV]]
 #immo-dv #fachregel`
   },
   {
@@ -77,7 +77,7 @@ definition:: [[Immo-DV]]
 Der Antragsteller ist eine natürliche Person, die einen Kreditantrag stellt.
 Muss bei Antragstellung volljährig sein und einen Wohnsitz in Deutschland nachweisen.
 
-definition:: [[Antragsteller]]
+definiert:: [[Antragsteller]]
 ist-ein:: [[Person]]
 teil-von:: [[Kreditantrag]]
 #domäne #kredit`
@@ -88,7 +88,7 @@ teil-von:: [[Kreditantrag]]
     raw: `# Mitantragsteller
 Zweite Person, die den Kreditantrag gemeinsam mit dem Antragsteller stellt.
 
-definition:: [[Mitantragsteller]]
+definiert:: [[Mitantragsteller]]
 ist-ein:: [[Antragsteller]]
 #domäne #kredit`
   },
@@ -262,8 +262,9 @@ const LINK = /\[\[([^[\]\n]+)\]\]/g;
 // einem Listenpunkt ist es keine Relation, sondern Text mit Link.
 const RELATION_NAME = '[\\p{L}\\p{N}_-]+';
 const RELATION = new RegExp(`^(${RELATION_NAME})::[ \\t]*\\[\\[([^[\\]\\n]+)\\]\\]`, 'u');
-// Beide Schreibweisen machen einen Block zur Definition: definition:: (Fuda) und definiert:: (Hitokoto)
-const DEFINITION_KEYS = ['definition', 'definiert'];
+// definiert:: macht einen Block zur Definition, das eine Wort wie in Hitokoto (Dateikompatibilität, entschieden
+// am 01.11.2026). definition:: ist eine gewöhnliche Relation.
+const DEFINITION_KEY = 'definiert';
 
 // Die eine Regel für Code-Blöcke: [{ from, to, closed, lang }] als Zeilennummern samt Fence-Zeilen,
 // lang = das erste Wort nach dem Fence (```java); open = am Ende ist noch ein Block offen
@@ -328,7 +329,7 @@ function linkLabel(inner) {
 }
 
 function isDefinitionKey(key) {
-  return DEFINITION_KEYS.includes(key.toLowerCase());
+  return key.toLowerCase() === DEFINITION_KEY;
 }
 
 // Ohne Dubletten, Groß/klein egal; es bleibt die erste Schreibweise
@@ -389,7 +390,6 @@ function act(action, arg) {
 //   [[Begriff]]    -> Blöcke, die darauf verlinken, auch per Relation; reine Textnennungen nicht
 //   name::         -> Blöcke mit dieser Relation;  name:: [[Ziel]] -> genau diese Verbindung
 //   alles andere   -> Textsuche: Wortteile, alle müssen vorkommen, Groß/klein und ä/ae egal
-// Einzige Fuda-Erweiterung: definition:: und definiert:: finden beide Schreibweisen.
 // ============================================================================
 const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const QUERY_TAG = new RegExp(`^#(${TAG_NAME})$`, 'u');
@@ -411,7 +411,7 @@ function parseQuery(rest) {
   if (relation) {
     const key = relation[1].toLowerCase();
     const target = relation[2] && linkTarget(relation[2]).toLowerCase();
-    return { form: 'relation', keys: isDefinitionKey(key) ? DEFINITION_KEYS : [key], target: target || null };
+    return { form: 'relation', key, target: target || null };
   }
   return { form: 'text', words: fold(rest).split(/\s+/) };
 }
@@ -423,7 +423,7 @@ function matchesQuery(note, query) {
     case 'exact': return query.pattern.test(note.raw);
     case 'tag': return marks.tags.some(t => t.toLowerCase() === query.key);
     case 'link': return marks.links.some(l => l.toLowerCase() === query.key);
-    case 'relation': return marks.relations.some(r => query.keys.includes(r.key.toLowerCase())
+    case 'relation': return marks.relations.some(r => r.key.toLowerCase() === query.key
       && (!query.target || r.target.toLowerCase() === query.target));
   }
 }
@@ -449,7 +449,7 @@ function renderQuestionOverview() {
   const tagCounts = new Map();
   const linkCounts = new Map();        // alle [[Links]], auch die in Relationen
   const relationCounts = new Map();
-  const definitionCounts = new Map();  // Begriffe mit definition:: bzw. definiert::
+  const definitionCounts = new Map();  // Begriffe mit definiert::
   const count = (map, spelling) => {
     const entry = map.get(spelling.toLowerCase()) || { name: spelling, count: 0, spellings: new Map() };
     entry.count++;
@@ -495,7 +495,7 @@ function renderQuestionOverview() {
           </div>
         </section>
 
-        <!-- Sektion 2: BEGRIFFE (definiert via definition:: oder definiert:: [[...]]); mehrere Definitionen = Verlauf -->
+        <!-- Sektion 2: BEGRIFFE (definiert via definiert:: [[...]]); mehrere Definitionen = Verlauf -->
         <section>
           <h3 class="text-xs tracking-widest uppercase text-ink-muted font-medium mb-3">Begriffe (Definiert)</h3>
           <div class="flex flex-wrap gap-x-6 gap-y-2.5">
@@ -549,7 +549,7 @@ function renderQuestionOverview() {
 
 // Erlaubt es dem BA, aus einem "Virtuellen Begriff" mit 1 Klick eine echte Definition zu machen
 function prefillDefinition(termName) {
-  omnibar.value = `# ${termName}\n\n\ndefinition:: [[${termName}]]\n#domäne`;
+  omnibar.value = `# ${termName}\n\n\ndefiniert:: [[${termName}]]\n#domäne`;
   omnibar.focus();
   omnibar.setSelectionRange(termName.length + 3, termName.length + 3);
   omnibar.dispatchEvent(new Event('input'));
@@ -1021,7 +1021,7 @@ function renderDayGroups(list, definitions) {
 function renderTargetGroups(list, query, definitions) {
   const groups = new Map();
   for (const n of list) {
-    const targets = marksOf(n).relations.filter(r => query.keys.includes(r.key.toLowerCase())).map(r => r.target);
+    const targets = marksOf(n).relations.filter(r => r.key.toLowerCase() === query.key).map(r => r.target);
     for (const target of unique(targets)) {
       const key = target.toLowerCase();
       if (!groups.has(key)) groups.set(key, { target, notes: [] });
@@ -1123,7 +1123,7 @@ function toggleMentions(open = !mentionsOpen) {
 
 // Kanten zwischen Begriffen (Fuda): Tripel aus den geltenden Definitionen. Subjekt ist der definierte
 // Begriff, Prädikat und Objekt kommen aus den anderen Relationen desselben Blocks. Keine Kante ergeben:
-// frühere Definitionen, Blöcke ohne Definition, definition:: selbst, Relationen auf einen Begriff, den
+// frühere Definitionen, Blöcke ohne Definition, definiert:: selbst, Relationen auf einen Begriff, den
 // derselbe Block definiert (Selbstbezug, Synonyme), doppelte Zeilen. Fuda folgt keinen Ketten.
 const EDGES_COLLAPSE = 10;            // ab mehr eingehenden Kanten eingeklappt
 const LOOSE_KEYS = ['zu', 'quelle'];  // allgemeine Prädikate stehen hinter den übrigen
