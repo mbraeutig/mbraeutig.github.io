@@ -7,7 +7,7 @@
        Veröffentlichen mit publish.js gesetzt (--port); muss zum Port in start.cmd passen. -->
   <meta name="fuda-server" content="http://localhost:3000">
   <!-- Version für die Hilfe: "lokal" im Fuda-Ordner, publish.js setzt Hash und Datum des Commits ein -->
-  <meta name="fuda-version" content="08ca785 · 01.11.2026 19:20">
+  <meta name="fuda-version" content="91f4836 · 02.11.2026 20:42">
   <!-- Gleiche Regeln wie die CSP des Servers, für Auslieferung ohne eigene Header (GitHub Pages): alles nur
        von hier, Verbindung nur zum lokalen Fuda-Server. file: nur für den Demo-Modus (index.html als Datei).
        Skripte nur als Dateien, keine Inline-Skripte und keine onclick="…" (Klicks über data-action in app.js). -->
@@ -150,7 +150,7 @@
 
   <button id="help-link" type="button" data-action="openHelp" title="Hilfe (F1)" class="fixed right-3 bottom-3 z-30 text-xs text-ink-muted hover:text-ink-primary bg-[#F6F4F0] px-2 py-1 rounded-md">Hilfe</button>
 
-  <!-- Hilfe (F1): Feld, Suche, Tasten, Muster. Bei jeder neuen Taste oder Suchform mitpflegen, ebenso ANLEITUNG.md -->
+  <!-- Hilfe (F1): Feld, Suche, Tasten, Muster. Bei jeder neuen Taste oder Suchform mitpflegen, ebenso docs/ANLEITUNG.md -->
   <div id="help-panel" role="dialog" aria-label="Hilfe" class="hidden fixed inset-x-4 top-6 z-50 mx-auto max-w-xl max-h-[calc(100vh-3rem)] overflow-auto bg-[#FAF9F6] border border-paper-border rounded-2xl shadow-xl px-6 py-5 text-sm leading-relaxed text-ink-primary">
     <h2 class="font-serif text-xl font-semibold mb-1">札 Fuda</h2>
     <p class="text-ink-secondary">Ein Feld schreibt und sucht. Darunter stehen die Blöcke, die neuesten oben.</p>
@@ -229,7 +229,7 @@
 
     <h3 class="help-h">Mehr</h3>
     <p>Aus dem Terminal: <code>fu "Text"</code>, mit Pipe: <code>mvn test 2&gt;&amp;1 | fu "Testfehler #bug"</code> (Ausgabe als Code-Block).</p>
-    <p>Beispiele und Best Practices stehen in <code>ANLEITUNG.md</code> im Fuda-Ordner.</p>
+    <p>Beispiele und Best Practices stehen in <code>docs/ANLEITUNG.md</code> im Fuda-Ordner.</p>
 
     <p class="mt-3 font-medium">Keine Passwörter, PINs oder Tokens ablegen – die Dateien liegen im Klartext auf der Platte.</p>
 
