@@ -15,8 +15,10 @@
 const servedByFuda = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FUDA_SERVER = document.querySelector('meta[name="fuda-server"]')?.content || 'http://localhost:3000';
 const API_URL = (servedByFuda ? '' : FUDA_SERVER) + '/api/notes';
+const FOLDER_URL = API_URL.replace(/\/notes$/, '/ordner');
 const useBackend = location.protocol !== 'file:';
 const STATUS_BACKEND = '🟢 Lokale .md Dateien (Node.js)';
+const STATUS_FOLDER_MAX = 48; // längere Pfade vorne gekürzt, ganz im Tooltip
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 // Fallback-Demodaten (inkl. definierter Begriffe & virtuellem Begriff "Geschäftsartenbezugszahl";
@@ -104,6 +106,7 @@ Zugang: steht im Passwort-Tresor, nicht in Notizen
   }
 ];
 
+let notesFolder = ''; // Notizordner laut Server (GET /api/ordner), für die Statusanzeige
 let editingFilename = null;
 let editDraft = null; // Text im Inline-Editor, überlebt Neu-Rendern (Suche, Menüs, neue Blöcke)
 let editError = null; // Meldung im Inline-Editor (Konflikt, Server weg, leerer Text)
@@ -138,6 +141,7 @@ const helpPanel = document.getElementById('help-panel');
 async function initApp() {
   if (useBackend) {
     try {
+      await loadFolder();
       notes = sortNotes(await api(''));
     } catch (e) {
       notes = [];
@@ -162,10 +166,29 @@ async function api(path, options = {}) {
     setStatus('🔴 Server nicht erreichbar – start.cmd ausführen', true);
     throw new Error('Server nicht erreichbar');
   }
-  setStatus(STATUS_BACKEND);
+  setStatus(statusText(notesFolder), false, notesFolder);
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status, body });
   return body;
+}
+
+// Welcher Notizordner läuft: vor jedem Laden fragen, denn der Server kann inzwischen mit einem
+// anderen Ordner neu gestartet sein. Setzt nicht die Statusanzeige (das macht api()); geht die
+// Abfrage nicht, bleibt der letzte Stand, ein Server ohne /api/ordner zeigt den allgemeinen Text.
+async function loadFolder() {
+  try {
+    const res = await fetch(FOLDER_URL);
+    if (res.ok) notesFolder = (await res.json()).ordner || '';
+  } catch { /* Server weg: meldet gleich api() */ }
+}
+
+// 🟢 mit dem Pfad, zu lange Pfade vorne gekürzt, ab einem Trenner (…\Notizen\blocks)
+function statusText(folder) {
+  if (!folder) return STATUS_BACKEND;
+  if (folder.length <= STATUS_FOLDER_MAX) return `🟢 ${folder}`;
+  const tail = folder.slice(-(STATUS_FOLDER_MAX - 1));
+  const cut = tail.search(/[\\/]/);
+  return `🟢 …${cut > 0 ? tail.slice(cut) : tail}`;
 }
 
 // Zurück im Fenster (z. B. nach VS Code): außerhalb geänderte Dateien nachladen.
@@ -173,6 +196,7 @@ async function api(path, options = {}) {
 window.addEventListener('focus', async () => {
   if (!useBackend || editingFilename) return;
   try {
+    await loadFolder();
     const fresh = sortNotes(mergeNotes(await api('')));
     const signature = list => list.map(n => n.filename + n.lastModified).join('|');
     if (signature(fresh) !== signature(notes)) {
@@ -188,8 +212,9 @@ function notePath(filename) {
   return `/${encodeURIComponent(filename)}`;
 }
 
-function setStatus(text, isError = false) {
+function setStatus(text, isError = false, title = '') {
   storageBadge.textContent = text;
+  storageBadge.title = title;
   storageBadge.classList.toggle('bg-red-100', isError);
   storageBadge.classList.toggle('text-red-800', isError);
 }

@@ -7,7 +7,7 @@
        Veröffentlichen mit publish.js gesetzt (--port); muss zum Port in start.cmd passen. -->
   <meta name="fuda-server" content="http://localhost:3000">
   <!-- Version für die Hilfe: "lokal" im Fuda-Ordner, publish.js setzt Hash und Datum des Commits ein -->
-  <meta name="fuda-version" content="91f4836 · 02.11.2026 20:42">
+  <meta name="fuda-version" content="e6824aa · 03.11.2026 17:55">
   <!-- Gleiche Regeln wie die CSP des Servers, für Auslieferung ohne eigene Header (GitHub Pages): alles nur
        von hier, Verbindung nur zum lokalen Fuda-Server. file: nur für den Demo-Modus (index.html als Datei).
        Skripte nur als Dateien, keine Inline-Skripte und keine onclick="…" (Klicks über data-action in app.js). -->
@@ -29,7 +29,7 @@
     @font-face { font-family: 'Lora'; font-style: normal; font-weight: 500 600; font-display: swap; src: url(vendor/fonts/lora.woff2) format('woff2'); }
   </style>
 
-  <script src="tailwind-config.js?v=c25d24a12c"></script>
+  <script src="tailwind-config.js?v=3fb66a303b"></script>
 
   <style>
     body { background-color: #F6F4F0; color: #1F1E1C; }
@@ -120,7 +120,7 @@
     <div id="meta-bar" class="flex items-center justify-between mb-6 text-xs tracking-wider uppercase text-ink-muted font-medium">
       <div class="flex items-center gap-3">
         <span id="block-counter">0 BLÖCKE</span>
-        <span id="storage-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-paper-code text-ink-secondary normal-case tracking-normal">Lade...</span>
+        <span id="storage-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-paper-code text-ink-secondary normal-case tracking-normal whitespace-nowrap">Lade...</span>
       </div>
       <button type="button" data-action="openSplash" class="font-serif text-sm normal-case tracking-normal text-ink-secondary hover:text-ink-primary transition-colors" title="Fuda – ein Gedanke, ein Zettel">札 Fuda</button>
     </div>
@@ -240,6 +240,6 @@
 
   <!-- Farben für Code-Blöcke (BSD-3-Clause, vendor/README.md); muss vor app.js stehen -->
   <script src="vendor/highlight-11.11.1.min.js"></script>
-  <script src="app.js?v=c25d24a12c"></script>
+  <script src="app.js?v=3fb66a303b"></script>
 </body>
 </html>
