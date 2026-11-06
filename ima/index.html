@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#111419">
+<title>Ima 今</title>
+<!-- PWA (Konzept §7.4): installiert überlebt der Speicher, das Icon ist der Cue (§3.2) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ima">
+<!-- Statusleiste über dem Tuschegrund; der Header rechnet safe-area-inset-top schon ein -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  /* ---------- Token-System: Nachtfluss ---------- */
+  :root {
+    --ink:      #111419;   /* Tuschegrund */
+    --ink-2:    #181c23;   /* Karte */
+    --ink-3:    #21262f;   /* erhoben */
+    --paper:    #e9e4d8;   /* Washi-Text */
+    --paper-dim:#9a958a;   /* Nebentext */
+    --stone:    #6f7683;   /* Stein-Grau */
+    --ai:       hsl(var(--week-hue), 26%, 62%);  /* Ai-Iro, wochenvariabel */
+    --ai-dim:   hsl(var(--week-hue), 20%, 42%);
+    --week-hue: 214;
+    --r: 14px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    font-size: 17px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  .serif {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, "Times New Roman", serif;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--ai);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* ---------- App-Gerüst ---------- */
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  main {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 22px calc(24px + var(--safe-b));
+  }
+  .screen.active { display: flex; }
+
+  /* ---------- Kopfzeile ---------- */
+  header {
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 22px 6px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  header .mark {
+    font-size: 1.05rem;
+    letter-spacing: .35em;
+    color: var(--paper-dim);
+  }
+  header .mark b { color: var(--paper); font-weight: 500; }
+  header .where {
+    font-size: .72rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ai-dim);
+  }
+
+  /* ---------- Screen: Jetzt ---------- */
+  #jetzt {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 8vh;
+    padding-bottom: calc(90px + var(--safe-b));
+  }
+
+  #jetzt .empty {
+    color: var(--paper-dim);
+  }
+  #jetzt .empty .glyph {
+    font-size: 3.4rem;
+    color: var(--ink-3);
+    display: block;
+    margin-bottom: 18px;
+    -webkit-text-stroke: 1px var(--stone);
+    color: transparent;
+  }
+  #jetzt .empty p { font-size: 1.02rem; line-height: 1.6; }
+  #jetzt .empty .hint { font-size: .82rem; margin-top: 10px; color: var(--stone); }
+
+  #stoneWrap { width: 100%; }
+  #stoneText {
+    font-size: clamp(1.5rem, 6.4vw, 2.1rem);
+    line-height: 1.42;
+    font-weight: 400;
+    max-width: 26ch;
+    margin: 0 auto;
+    overflow-wrap: break-word;
+  }
+  #jetztActions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    width: 100%;
+  }
+
+  .primary {
+    background: var(--ai);
+    color: var(--ink);
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 15px 34px;
+    border-radius: 999px;
+    letter-spacing: .02em;
+    transition: transform .12s ease;
+  }
+  .primary:active { transform: scale(.97); }
+
+  .rowGhost {
+    display: flex;
+    gap: 28px;
+  }
+  .ghost {
+    color: var(--paper-dim);
+    font-size: .92rem;
+    padding: 8px 6px;
+    border-bottom: 1px solid transparent;
+  }
+  .ghost:active { color: var(--paper); }
+  .ghost.done { color: var(--ai); }
+
+  /* ---------- Ensō-Timer ---------- */
+  #ring {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    justify-content: safe center;   /* zu hoch? dann oben anfangen und scrollen */
+    overflow-y: auto;
+    gap: min(5vh, 44px);
+    background: var(--ink);
+    z-index: 30;
+    text-align: center;
+    padding: 22px 22px calc(22px + var(--safe-b));
+  }
+  #ring.active { display: flex; }
+
+  #ring .task {
+    font-size: 1.05rem;
+    color: var(--paper-dim);
+    max-width: 30ch;
+    line-height: 1.5;
+  }
+
+  .ensoBox { position: relative; width: min(64vw, 300px, 34vh); aspect-ratio: 1; flex-shrink: 0; }
+  .ensoBox svg { width: 100%; height: 100%; transform: rotate(-105deg); }
+  .ensoBox .track { stroke: var(--ink-3); }
+  .ensoBox .brush {
+    stroke: var(--ai);
+    transition: stroke-dashoffset .95s linear;
+  }
+  .ensoBox .core {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--ink-3);
+    -webkit-text-stroke: 1px var(--stone);
+    color: transparent;
+    pointer-events: none;
+  }
+
+  #ringActions { display: flex; flex-direction: column; gap: 18px; align-items: center; }
+  #ringQuestion { display: none; flex-direction: column; gap: 20px; align-items: center; }
+  #ringQuestion.active { display: flex; }
+  #ringQuestion .q { font-size: 1.3rem; }
+  #ringQuestion .pair { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  #ringQuestion .pair .primary { padding: 13px 30px; }
+  #ringRunning { display: flex; gap: 8px 22px; flex-wrap: wrap; justify-content: center; }
+  #ringSmall { font-size: .85rem; }
+  #ringRunning.hidden { display: none; }
+
+  /* ---------- Screen: Strom ---------- */
+  #strom { gap: 12px; padding-bottom: calc(96px + var(--safe-b)); }
+
+  #strom .stromHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  #strom .stromHead h2 {
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: .14em;
+    color: var(--paper-dim);
+  }
+  #drawBtn {
+    font-size: .88rem;
+    color: var(--ai);
+    border: 1px solid var(--ai-dim);
+    border-radius: 999px;
+    padding: 8px 16px;
+  }
+  #drawBtn:active { background: var(--ink-3); }
+
+  .stoneCard {
+    background: var(--ink-2);
+    border-radius: var(--r);
+    padding: 16px 18px;
+    font-size: 1.02rem;
+    line-height: 1.45;
+    text-align: left;
+    width: 100%;
+    border: 1px solid transparent;
+    transition: transform .1s ease;
+  }
+  .stoneCard:active { transform: scale(.985); border-color: var(--ai-dim); }
+
+  #strom .empty {
+    margin-top: 12vh;
+    text-align: center;
+    color: var(--paper-dim);
+    line-height: 1.7;
+  }
+
+  #strom .tiefer {
+    margin-top: 14px;
+    font-size: .82rem;
+    color: var(--stone);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  #toGrund {
+    margin-top: 26px;
+    align-self: center;
+    font-size: .78rem;
+    letter-spacing: .14em;
+    color: var(--stone);
+  }
+
+  /* ---------- Screen: Flussgrund ---------- */
+  #grund { gap: 20px; padding-bottom: calc(96px + var(--safe-b)); }
+  #grund h2 {
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: .14em;
+    color: var(--paper-dim);
+  }
+  #grund .intro { font-size: .88rem; color: var(--stone); line-height: 1.6; }
+
+  #pebbles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px 6px 6px;
+  }
+  .pebble {
+    position: relative;
+    width: 15px;
+    height: 11px;
+    border-radius: 50% 50% 46% 54% / 62% 58% 42% 38%;
+    background: var(--stone);
+    opacity: .8;
+  }
+  /* unsichtbar größere Tippfläche: der Kiesel bleibt klein, der Daumen trifft */
+  .pebble::after { content: ""; position: absolute; inset: -6px; }
+  .pebble.done { background: var(--ai); }
+  .pebble:focus-visible { border-radius: 50% 50% 46% 54% / 62% 58% 42% 38%; }
+  .pebble.on { opacity: 1; box-shadow: 0 0 0 2px var(--ink), 0 0 0 3.5px var(--paper-dim); }
+
+  #kiesel { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  #kiesel[hidden] { display: none; }
+  #kieselText { font-size: 1.1rem; line-height: 1.45; overflow-wrap: break-word; max-width: 100%; }
+  .pebble:nth-child(3n)  { transform: rotate(14deg) scaleX(1.15); }
+  .pebble:nth-child(4n)  { transform: rotate(-11deg) scaleY(.9); }
+  .pebble:nth-child(5n)  { transform: rotate(24deg); }
+
+  #grund .none { color: var(--stone); font-size: .9rem; }
+
+  #exportBtn, #backupBtn {
+    align-self: flex-start;
+    font-size: .88rem;
+    color: var(--ai);
+    border: 1px solid var(--ai-dim);
+    border-radius: 999px;
+    padding: 9px 18px;
+  }
+  #backToStrom {
+    align-self: center;
+    margin-top: 8px;
+    font-size: .78rem;
+    letter-spacing: .14em;
+    color: var(--stone);
+  }
+
+  /* ---------- Untere Leiste ---------- */
+  nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 44px;
+    padding: 10px 22px calc(14px + var(--safe-b));
+    background: linear-gradient(to top, var(--ink) 62%, transparent);
+    max-width: 560px;
+    margin: 0 auto;
+    z-index: 20;
+  }
+  nav .tab {
+    font-size: .78rem;
+    letter-spacing: .16em;
+    color: var(--stone);
+    padding: 12px 10px;
+  }
+  nav .tab.on { color: var(--paper); }
+  #fangBtn {
+    flex-shrink: 0;           /* bei 320 px Breite sonst oval gestaucht */
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    border: 1px solid var(--ai-dim);
+    color: var(--ai);
+    font-size: 1.7rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .12s ease;
+  }
+  #fangBtn:active { transform: scale(.94); }
+
+  /* ---------- Fangen-Overlay ---------- */
+  #fang {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,12,16,.86);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 16vh 22px 0;
+    z-index: 50;
+  }
+  #fang.active { display: flex; }
+  #fang form { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 14px; }
+  #fang input {
+    width: 100%;
+    background: var(--ink-2);
+    border: 1px solid var(--ink-3);
+    border-radius: var(--r);
+    color: var(--paper);
+    font: inherit;
+    font-size: 1.1rem;
+    padding: 16px 18px;
+  }
+  #fang input::placeholder { color: var(--stone); }
+  #fang .fangHint {
+    font-size: .78rem;
+    color: var(--stone);
+    text-align: center;
+    letter-spacing: .08em;
+  }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(104px + var(--safe-b));
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink-3);
+    color: var(--paper);
+    font-size: .86rem;
+    padding: 10px 18px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 60;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="mark serif"><b>今</b>&nbsp;ima</span>
+    <span class="where" id="whereLabel">jetzt</span>
+  </header>
+
+  <main>
+    <!-- ========== JETZT ========== -->
+    <section class="screen active" id="jetzt">
+      <div class="empty" id="jetztEmpty">
+        <span class="glyph serif">今</span>
+        <p class="serif">Was ist jetzt dran?</p>
+        <p class="hint">Zieh einen Stein aus dem Strom –<br>oder fang einen neuen.</p>
+      </div>
+
+      <div id="stoneWrap" hidden>
+        <p id="stoneText" class="serif"></p>
+      </div>
+
+      <div id="jetztActions" hidden>
+        <button class="primary" id="startBtn">2 Minuten anfangen</button>
+        <div class="rowGhost">
+          <button class="ghost done" id="doneBtn">✓&ensp;losgelassen</button>
+          <button class="ghost" id="dropBtn">–&ensp;verworfen</button>
+          <button class="ghost" id="backBtn">↑&ensp;zurücklegen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== STROM ========== -->
+    <section class="screen" id="strom">
+      <div class="stromHead">
+        <h2>Der Strom</h2>
+        <button id="drawBtn">Zieh einen</button>
+      </div>
+      <div id="stromList"></div>
+      <div class="empty" id="stromEmpty" hidden>
+        <p class="serif">Der Strom ist still.</p>
+        <p class="hint" style="font-size:.82rem;color:var(--stone);margin-top:8px">Fang einen Gedanken, bevor er weiterzieht.</p>
+      </div>
+      <button id="toGrund">▿&ensp;zum Flussgrund</button>
+    </section>
+
+    <!-- ========== FLUSSGRUND ========== -->
+    <section class="screen" id="grund">
+      <h2>Kawa no soko · Flussgrund</h2>
+      <p class="intro">Jeder Kiesel ist ein losgelassener Stein. Erledigt, verworfen oder still versunken – hier zählt nur, dass du weitergegangen bist. Tipp einen an, um ihn zu lesen.</p>
+      <div id="pebbles"></div>
+      <div id="kiesel" hidden>
+        <p class="serif" id="kieselText"></p>
+        <button class="ghost" id="surfaceBtn">↑&ensp;zurück in den Strom</button>
+      </div>
+      <p class="none" id="grundNone" hidden>Noch liegt hier nichts. Das ist in Ordnung.</p>
+      <button id="exportBtn">Markdown exportieren</button>
+      <button id="backupBtn">Sicherung speichern</button>
+      <button id="backToStrom">▵&ensp;zurück zum Strom</button>
+    </section>
+
+    <!-- ========== ENSŌ-RING ========== -->
+    <div id="ring">
+      <p class="task serif" id="ringTask"></p>
+      <div class="ensoBox">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="track" cx="50" cy="50" r="44" fill="none" stroke-width="2.5" />
+          <circle class="brush" id="brush" cx="50" cy="50" r="44" fill="none"
+                  stroke-width="5" stroke-linecap="round"
+                  stroke-dasharray="276.46" stroke-dashoffset="276.46" />
+        </svg>
+        <div class="core serif">間</div>
+      </div>
+      <div id="ringActions">
+        <div id="ringRunning">
+          <button class="ghost" id="ringStop">still beenden</button>
+          <!-- Fangen, ohne den Ring abzubrechen (Konzept §5.2) -->
+          <button class="ghost" id="ringFang">＋&ensp;Gedanken fangen</button>
+        </div>
+        <div id="ringQuestion">
+          <p class="q serif">Weiter?</p>
+          <div class="pair">
+            <button class="primary" id="ringYes">Noch 2 Minuten</button>
+            <!-- der häufigste reale Ausgang: angefangen, nicht fertig, für jetzt genug -->
+            <button class="ghost" id="ringEnough">Für jetzt genug</button>
+            <button class="ghost done" id="ringFinish">✓&ensp;Fertig</button>
+          </div>
+          <button class="ghost" id="ringSmall">＋&ensp;nächsten kleinen Schritt fangen</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <nav>
+    <button class="tab on" id="tabJetzt">JETZT</button>
+    <button id="fangBtn" aria-label="Gedanken fangen">＋</button>
+    <button class="tab" id="tabStrom">STROM</button>
+  </nav>
+
+  <!-- ========== FANGEN ========== -->
+  <div id="fang">
+    <form id="fangForm">
+      <input id="fangInput" type="text" autocomplete="off" enterkeyhint="done"
+             maxlength="140" placeholder="Was schwimmt vorbei?">
+      <p class="fangHint">Enter fängt · Tippen daneben lässt los</p>
+    </form>
+  </div>
+
+  <div id="toast" role="status"></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Ima 今 — ein Textfeld, ein Stein, ein Ring.
+   Zero dependencies. localStorage. KISS.
+   ============================================================ */
+
+const DAY = 86400000;
+const FADE_DAYS = 14;      // ab hier verblasst ein Stein
+const SINK_DAYS = 28;      // ab hier sinkt er zum Grund
+const RING_SECONDS = 120;  // "2 Minuten anfangen"
+const CIRC = 276.46;       // 2·π·44
+const JETZT_HOURS = 6;     // so lange weg, und der Jetzt-Stein ist nicht mehr jetzt
+const HOUR = 3600000;
+const STROM_TOP = 12;      // nur für Variante V.strom = "top"
+const STROM_CAP = 15;      // nur für Variante V.uhr = "platz": so viel trägt der Strom
+
+const TITLE_IDLE = "Ima 今";
+const TITLE_RUN  = "◯ Ima 今";
+const TITLE_DONE = "● Weiter? — Ima 今";
+
+/* ---------- Die Uhr ----------
+   Alles Fachliche (Alter, Verwittern, Loslassen) fragt now(), nie Date.now().
+   Damit lässt sich die Zeit im Lab vorspulen — die 14/28-Tage-Regeln sind
+   sonst nicht prüfbar. Der Ensō-Ring läuft bewusst auf der echten Uhr. */
+const LAB = new URLSearchParams(location.search).has("lab");
+let labOffset = 0;
+const now = () => Date.now() + labOffset;
+
+/* ---------- Varianten ----------
+   Defaults = heutiges Verhalten. Nur das Lab schaltet um; die offenen
+   Konzeptfragen werden damit vergleichbar statt diskutierbar. */
+const V = {
+  strom:   "alle",      // "alle" = ganze Liste · "top" = nur was oben schwimmt
+  uhr:     "kalender"   // womit Steine verwittern:
+                        //   "kalender" = Kalendertage seit touched (heute)
+                        //   "oeffnung" = Abwesenheit zählt höchstens einen Tag
+                        //   "platz"    = Verdrängung: der Strom trägt STROM_CAP
+                        //                Steine, dazu "oeffnung" als Obergrenze.
+};
+
+/* ---------- Zustand ---------- */
+let erstStart = false;      // noch nie gespeichert -> erste Steine (s. firstStones)
+let lastRaw = null;         // was dieser Tab zuletzt gelesen oder geschrieben hat
+let db = load();
+
+function readRaw() {
+  try { return localStorage.getItem("ima.v1"); } catch (e) { return null; }
+}
+
+/* Korrupte Daten — auch solche, die als JSON gültig sind, aber keine DB
+   (null, {}, [], abgeschnittene Objekte) — führen zum stillen Neustart mit
+   leerer DB, nie zum Absturz (Konzept §4.3). Einzelne kaputte Steine fallen weg. */
+function parseDb(raw) {
+  try {
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== "object" || !Array.isArray(d.stones)) return null;
+    const stones = d.stones.filter(s => s && typeof s === "object"
+      && typeof s.id === "string" && typeof s.text === "string"
+      && ["strom", "jetzt", "grund"].includes(s.state)
+      && typeof s.created === "number" && typeof s.touched === "number");
+    return {
+      stones,
+      nowId: typeof d.nowId === "string" ? d.nowId : null,
+      seen: typeof d.seen === "number" ? d.seen : null
+    };
+  } catch (e) { return null; }
+}
+
+function load() {
+  const raw = readRaw();
+  lastRaw = raw;
+  erstStart = raw === null;   // korrupte oder leere Daten sind kein erster Start
+  return (raw && parseDb(raw)) || { stones: [], nowId: null, seen: null };
+}
+function save() {
+  db.seen = now();   // jede Speicherung ist ein Lebenszeichen: zuletzt hier gewesen
+  const raw = JSON.stringify(db);
+  try { localStorage.setItem("ima.v1", raw); lastRaw = raw; } catch (e) {}
+}
+
+/* Mehrere Tabs/Fenster: Hat ein anderer geschrieben, übernimmt dieser Tab dessen
+   Stand, statt ihn später mit seinem alten zu überschreiben. */
+function fremdGeschrieben() {
+  const raw = readRaw();
+  return raw !== null && raw !== lastRaw;
+}
+function syncFromStorage() {
+  if (!fremdGeschrieben()) return false;
+  const raw = readRaw();
+  db = parseDb(raw) || { stones: [], nowId: null, seen: null };
+  lastRaw = raw;
+  return true;
+}
+
+/* ---------- Verwittern (lazy, beim Start) ---------- */
+function sink(s, t) {
+  s.state = "grund";
+  s.kind = "sank";
+  s.released = t;
+}
+
+function weather() {
+  const t = now();
+  // Jetzt-Invariante in beide Richtungen (CLAUDE.md): höchstens ein Stein im
+  // Jetzt, und nowId zeigt auf ihn. Überzählige gehen still in den Strom —
+  // zuerst, damit sie unten normal verwittern können.
+  const imJetzt = db.stones.filter(s => s.state === "jetzt");
+  const bleibt = imJetzt.find(s => s.id === db.nowId) || imJetzt[imJetzt.length - 1] || null;
+  for (const s of imJetzt) if (s !== bleibt) s.state = "strom";
+  db.nowId = bleibt ? bleibt.id : null;
+
+  const pause = db.seen ? t - db.seen : 0;   // wie lange war niemand hier?
+  // Jetzt ist eine Sitzung, kein Lagerplatz (Konzept §4.4): Nach längerer
+  // Abwesenheit liegt der Jetzt-Stein still wieder im Strom — touched bleibt,
+  // wie es war, damit er danach normal verwittert. Ein laufender Ring hält ihn.
+  const ringOffen = $("ring").classList.contains("active");
+  if (pause > JETZT_HOURS * HOUR && !ringOffen) {
+    for (const s of db.stones) if (s.state === "jetzt") s.state = "strom";
+    db.nowId = null;
+  }
+  // Variante V.uhr = "oeffnung" (Lab, Review B3): Eine Abwesenheit zählt höchstens
+  // einen Tag — die Verwitterungsuhr läuft nur, solange man kommt. Angenähert durch
+  // Verschieben von touched um den Rest der Pause: kein neues Feld und kein
+  // Protokoll, an welchen Tagen man da war.
+  if (V.uhr !== "kalender" && pause > DAY) {
+    for (const s of db.stones) if (s.state === "strom") s.touched += pause - DAY;
+  }
+  for (const s of db.stones) {
+    if (s.state === "strom" && t - s.touched > SINK_DAYS * DAY) sink(s, t);
+  }
+  displace();
+  save();
+}
+
+/* Reihenfolge des Stroms nach letzter Berührung, oben = zuletzt berührt.
+   Gleichstand (mehrere Steine in derselben Millisekunde gefangen): später
+   gefangen liegt höher. */
+function stromOrder() {
+  return db.stones
+    .map((s, i) => [s, i])
+    .filter(([s]) => s.state === "strom")
+    .sort((a, b) => b[0].touched - a[0].touched || b[1] - a[1])
+    .map(([s]) => s);
+}
+
+/* Variante V.uhr = "platz" (Lab, Verbesserungsvorschlag 1): Verdrängung statt
+   Verwitterung. Wer über STROM_CAP hinaus fängt, lässt den untersten Stein still
+   sinken. Abwesenheit allein versenkt nichts. */
+function displace() {
+  if (V.uhr !== "platz") return;
+  const t = now();
+  for (const s of stromOrder().slice(STROM_CAP)) sink(s, t);
+}
+
+/* ---------- Wochenvariation (Neuheit als Nebenprodukt) ---------- */
+function weekHue() {
+  const d = new Date(now());
+  const oneJan = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil((((d - oneJan) / DAY) + oneJan.getDay() + 1) / 7);
+  const seed = d.getFullYear() * 53 + week;
+  const hue = 190 + (seed * 37) % 60;        // 190–250: kühle Wassertöne
+  document.documentElement.style.setProperty("--week-hue", hue);
+}
+
+/* ---------- Helfer ---------- */
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+/* ---------- Navigation ---------- */
+const screens = { jetzt: $("jetzt"), strom: $("strom"), grund: $("grund") };
+const labels  = { jetzt: "jetzt", strom: "der strom", grund: "flussgrund" };
+let currentScreen = "jetzt";
+
+function show(name) {
+  currentScreen = name;
+  if (name !== "grund") kieselId = null;    // wer geht, lässt den Kiesel los
+  for (const k in screens) screens[k].classList.toggle("active", k === name);
+  $("whereLabel").textContent = labels[name];
+  $("tabJetzt").classList.toggle("on", name === "jetzt");
+  $("tabStrom").classList.toggle("on", name !== "jetzt");
+  if (name === "jetzt") renderJetzt();
+  if (name === "strom") renderStrom();
+  if (name === "grund") renderGrund();
+}
+
+/* ---------- Render: Jetzt ---------- */
+function currentStone() {
+  return db.nowId ? db.stones.find(s => s.id === db.nowId && s.state === "jetzt") : null;
+}
+
+function renderJetzt() {
+  const s = currentStone();
+  $("jetztEmpty").hidden = !!s;
+  $("stoneWrap").hidden = !s;
+  $("jetztActions").hidden = !s;
+  // keine Altersangabe: das Alter zeigt allein das Verblassen (Konzept §5.1)
+  if (s) $("stoneText").textContent = s.text;
+}
+
+/* ---------- Render: Strom ---------- */
+function renderStrom() {
+  const list = $("stromList");
+  // Variante "platz": die Position ist die Zeit — sortiert nach letzter Berührung
+  const all = V.uhr === "platz"
+    ? stromOrder()
+    : db.stones.filter(s => s.state === "strom").sort((a, b) => b.created - a.created);
+
+  $("stromEmpty").hidden = all.length > 0;
+  $("drawBtn").style.visibility = all.length ? "visible" : "hidden";
+
+  // Variante "top": nur was oben schwimmt, der Rest bleibt über "Zieh einen" erreichbar
+  const stones = V.strom === "top" ? all.slice(0, STROM_TOP) : all;
+  const tiefer = all.length - stones.length;
+
+  const t = now();
+  const cards = [];
+  const posFrom = Math.floor(STROM_CAP / 2);   // "platz": ab hier verblasst die Tiefe
+  stones.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.className = "stoneCard";
+    const age = (t - s.touched) / DAY;
+    let fade = age > FADE_DAYS ? Math.min((age - FADE_DAYS) / (SINK_DAYS - FADE_DAYS), 1) : 0;
+    // "platz": was zuerst sinkt — Tiefe oder Alter — bestimmt die Blässe
+    if (V.uhr === "platz" && i >= posFrom)
+      fade = Math.max(fade, Math.min((i - posFrom + 1) / (STROM_CAP - posFrom), 1));
+    if (fade > 0) btn.style.opacity = String(1 - fade * 0.5);   // Boden bei .5, nicht .38
+    const txt = document.createElement("span");
+    txt.className = "serif";
+    txt.textContent = s.text;
+    btn.append(txt);
+    btn.addEventListener("click", () => pick(s.id));
+    cards.push(btn);
+  });
+  if (tiefer > 0) {
+    const p = document.createElement("p");
+    p.className = "tiefer";
+    p.textContent = "Weitere liegen tiefer im Strom. Zieh einen.";
+    cards.push(p);
+  }
+  list.replaceChildren(...cards);
+}
+
+/* ---------- Render: Flussgrund ---------- */
+function renderGrund() {
+  const box = $("pebbles");
+  const kiesel = [];
+  const released = db.stones
+    .filter(s => s.state === "grund")
+    .sort((a, b) => a.released - b.released);
+
+  $("grundNone").hidden = released.length > 0;
+  $("exportBtn").style.display = released.length ? "" : "none";
+  $("backupBtn").style.display = db.stones.length ? "" : "none";
+
+  for (const s of released) {
+    const p = document.createElement("button");
+    p.className = "pebble" + (s.kind === "done" ? " done" : "");
+    p.dataset.id = s.id;
+    p.title = s.text;                       // Desktop-Hover
+    p.setAttribute("aria-label", s.text);
+    p.addEventListener("click", () => selectKiesel(s.id));
+    kiesel.push(p);
+  }
+  box.replaceChildren(...kiesel);
+  if (!released.some(s => s.id === kieselId)) kieselId = null;
+  paintKiesel();
+}
+
+/* Die Vergangenheit zeigt sich nur auf Nachfrage: Tap auf einen Kiesel zeigt
+   seinen Text, erneuter Tap schließt. Kein Datum, keine Art, keine Zahl. */
+let kieselId = null;
+function selectKiesel(id) {
+  kieselId = kieselId === id ? null : id;
+  paintKiesel();
+}
+function paintKiesel() {
+  for (const p of $("pebbles").children) p.classList.toggle("on", p.dataset.id === kieselId);
+  const s = kieselId && db.stones.find(x => x.id === kieselId);
+  $("kiesel").hidden = !s;
+  if (s) $("kieselText").textContent = s.text;
+}
+
+/* ---------- Aktionen ---------- */
+function capture(text) {
+  const t = now();
+  db.stones.push({
+    id: uid(), text,
+    created: t, touched: t,
+    state: "strom", kind: null, released: null
+  });
+  displace();               // Variante "platz": der Neue verdrängt den Untersten
+  save();
+  toast("Gefangen.");
+}
+
+function pick(id) {
+  // erst den Zielstein sichern: sonst ist der Jetzt-Stein bei unbekannter id
+  // schon aus dem Jetzt geräumt, während nowId noch auf ihn zeigt
+  const s = db.stones.find(x => x.id === id);
+  if (!s) return;
+  // liegt schon ein Stein im Jetzt? -> sanft zurück in den Strom.
+  // Hochnehmen und Zurücklegen frischen touched nicht auf: touched heißt
+  // „zuletzt daran gearbeitet", nicht „zuletzt angesehen" (Konzept §4.4) —
+  // sonst erkauft Vermeidung Unsterblichkeit (Touch-Falle).
+  const cur = currentStone();
+  if (cur) cur.state = "strom";
+  s.state = "jetzt";
+  db.nowId = s.id;
+  save();
+  show("jetzt");
+}
+
+function drawRandom() {
+  // Variante "platz": Gewichtung nach Position statt nach Alter
+  const platz = V.uhr === "platz";
+  const pool = platz ? stromOrder() : db.stones.filter(s => s.state === "strom");
+  if (!pool.length) return;
+  // Gewichtung: frische Steine etwas wahrscheinlicher
+  const t = now();
+  const weights = pool.map((s, i) => 1 + Math.max(0, 1 - (platz
+    ? i / STROM_CAP
+    : (t - s.created) / (SINK_DAYS * DAY))));
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  let chosen = pool[0];
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { chosen = pool[i]; break; }
+  }
+  pick(chosen.id);
+}
+
+function release(kind) {
+  const s = currentStone();
+  if (!s) return;
+  s.state = "grund";
+  s.kind = kind;            // "done" | "let"
+  s.released = now();
+  db.nowId = null;
+  save();
+  vibrate(18);
+  toast(kind === "done" ? "Losgelassen. ✓" : "Losgelassen.");
+  renderJetzt();
+}
+
+function putBack(quiet) {
+  const s = currentStone();
+  if (!s) return;
+  s.state = "strom";        // touched bleibt: Zurücklegen ist keine Arbeit
+  db.nowId = null;
+  save();
+  if (!quiet) toast("Zurück im Strom.");
+  renderJetzt();
+}
+
+/* Auftauchen (Konzept §4.4, §5.5): Fangen aus dem Flussgrund. Der Stein kehrt
+   zurück wie frisch gefangen — touched neu, kind und released gelöscht. */
+function surface() {
+  const s = db.stones.find(x => x.id === kieselId && x.state === "grund");
+  if (!s) return;
+  s.state = "strom";
+  s.kind = null;
+  s.released = null;
+  s.created = s.touched = now();   // wie frisch gefangen: oben im Strom, volles Gewicht
+  kieselId = null;
+  displace();               // Variante "platz": wie jedes Fangen
+  save();
+  toast("Wieder im Strom.");
+  renderGrund();
+}
+
+/* ---------- Ensō-Timer ----------
+   Läuft auf der echten Uhr, nicht auf now(): der Ring ist gelebte Zeit.
+   rAF pausiert in Hintergrund-Tabs vollständig — deshalb zusätzlich ein
+   Wall-Clock-Backstop und der Tab-Titel als Endsignal (auf dem Desktop
+   gibt es keine Vibration). Ziffernfrei, wie in §5.2 gefordert. */
+let ringRAF = null, ringTimer = null, ringEnd = 0, ringLive = false;
+
+function startRing() {
+  const s = currentStone();
+  if (!s) return;
+  s.touched = now();          // daran zu arbeiten ist die eigentliche Berührung
+  save();
+  $("ringTask").textContent = s.text;
+  $("ring").classList.add("active");
+  $("ringQuestion").classList.remove("active");
+  $("ringRunning").classList.remove("hidden");
+  setBehindInert(true);
+  runRing();
+  $("ringStop").focus();
+}
+
+function runRing() {
+  ringEnd = Date.now() + RING_SECONDS * 1000;
+  ringLive = true;
+  document.title = TITLE_RUN;
+
+  const brush = $("brush");
+  brush.style.transition = "none";
+  brush.style.strokeDashoffset = CIRC;
+  // reflow, dann weiche Übergänge wieder an
+  void brush.getBoundingClientRect();
+  brush.style.transition = "";
+
+  clearTimeout(ringTimer);
+  ringTimer = setTimeout(ringDone, RING_SECONDS * 1000 + 40);
+  paintRing();
+}
+
+function paintRing() {
+  cancelAnimationFrame(ringRAF);
+  const brush = $("brush");
+  const tick = () => {
+    if (!ringLive) return;
+    const left = ringEnd - Date.now();
+    const frac = Math.max(0, left / (RING_SECONDS * 1000));
+    brush.style.strokeDashoffset = String(CIRC * frac);
+    if (left <= 0) { ringDone(); return; }
+    ringRAF = requestAnimationFrame(tick);
+  };
+  ringRAF = requestAnimationFrame(tick);
+}
+
+function ringDone() {
+  if (!ringLive) return;
+  ringLive = false;
+  cancelAnimationFrame(ringRAF);
+  clearTimeout(ringTimer);
+  $("brush").style.strokeDashoffset = "0";
+  document.title = TITLE_DONE;
+  vibrate([28, 60, 28]);
+  $("ringRunning").classList.add("hidden");
+  $("ringQuestion").classList.add("active");
+  // wer gerade fängt, behält den Fokus im Textfeld
+  if (!$("fang").classList.contains("active")) $("ringYes").focus();
+}
+
+function closeRing() {
+  ringLive = false;
+  cancelAnimationFrame(ringRAF);
+  clearTimeout(ringTimer);
+  document.title = TITLE_IDLE;
+  $("ring").classList.remove("active");
+  setBehindInert(false);
+}
+
+/* ---------- Markdown-Export ---------- */
+function exportMarkdown() {
+  const released = db.stones
+    .filter(s => s.state === "grund")
+    .sort((a, b) => a.released - b.released);
+
+  const byDay = {};
+  for (const s of released) {
+    const d = lokalesDatum(s.released);
+    (byDay[d] = byDay[d] || []).push(s);
+  }
+
+  let md = "# Ima 今 — Flussgrund\n";
+  for (const day of Object.keys(byDay).sort()) {
+    md += `\n## ${day}\n`;
+    for (const s of byDay[day]) {
+      const box = s.kind === "done" ? "x" : "-";
+      md += `- [${box}] ${s.text}\n`;
+    }
+  }
+
+  download(new Blob([md], { type: "text/markdown" }), "ima-flussgrund.md");
+  toast("Exportiert.");
+}
+
+/* JSON-Sicherung (Roadmap v0.2, aus v0.3 vorgezogen): die ganze DB als Datei.
+   Die einzige Backup-Möglichkeit, die das Anti-Scope zulässt — kein Konto, keine
+   Cloud (§7.4). Pull, nie Push: Ima erinnert nicht ans Sichern. */
+function exportBackup() {
+  download(new Blob([JSON.stringify(db, null, 2)], { type: "application/json" }),
+           `ima-sicherung-${lokalesDatum(now())}.json`);
+  toast("Gesichert.");
+}
+
+// YYYY-MM-DD in der Ortszeit — nicht UTC, sonst landet „nach Mitternacht" am Vortag
+function lokalesDatum(ts) {
+  const d = new Date(ts);
+  const zwei = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`;
+}
+
+// Anker ins Dokument, URL erst später freigeben: Safari/iOS lädt asynchron
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+/* ---------- Overlays: Fokus hinter dem Overlay stilllegen ---------- */
+const screenEls = [...document.querySelectorAll(".screen")];
+const navEl = document.querySelector("nav");
+function setBehindInert(on) {
+  for (const el of screenEls) el.inert = on;
+  navEl.inert = on;
+}
+
+/* ---------- Fangen-Overlay ---------- */
+function openFang() {
+  if ($("fang").classList.contains("active")) return;
+  // Nach Ringschluss ist Fangen Zerlegen: der nächste kleine Schritt wird ein
+  // eigener Stein — keine Hierarchie, keine Relation (Konzept §5.2). Während
+  // der Ring läuft, fängt man eher, was dazwischenkommt.
+  const zerlegen = $("ring").classList.contains("active")
+                && $("ringQuestion").classList.contains("active");
+  $("fangInput").placeholder = zerlegen ? "Was ist der nächste kleine Schritt?" : "Was schwimmt vorbei?";
+  $("fang").classList.add("active");
+  setBehindInert(true);
+  setTimeout(() => $("fangInput").focus(), 40);
+}
+function closeFang() {
+  $("fang").classList.remove("active");
+  $("fangInput").value = "";
+  // läuft der Ring noch, kehrt man in ihn zurück — dahinter bleibt alles still
+  setBehindInert($("ring").classList.contains("active"));
+}
+
+/* ---------- Verdrahtung ---------- */
+$("fangBtn").addEventListener("click", openFang);
+$("fang").addEventListener("click", e => { if (e.target === $("fang")) closeFang(); });
+$("fangForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const text = $("fangInput").value.trim();
+  if (text) capture(text);
+  closeFang();
+  const active = document.querySelector(".screen.active");
+  if (active && active.id === "strom") renderStrom();
+});
+
+$("tabJetzt").addEventListener("click", () => show("jetzt"));
+$("tabStrom").addEventListener("click", () => show("strom"));
+$("toGrund").addEventListener("click", () => show("grund"));
+$("backToStrom").addEventListener("click", () => show("strom"));
+
+$("startBtn").addEventListener("click", startRing);
+$("doneBtn").addEventListener("click", () => release("done"));
+$("dropBtn").addEventListener("click", () => release("let"));
+$("backBtn").addEventListener("click", () => putBack());   // nicht das Event als `quiet`
+
+$("drawBtn").addEventListener("click", drawRandom);
+$("exportBtn").addEventListener("click", exportMarkdown);
+$("backupBtn").addEventListener("click", exportBackup);
+$("surfaceBtn").addEventListener("click", surface);
+
+$("ringStop").addEventListener("click", closeRing);
+$("ringFang").addEventListener("click", openFang);
+$("ringSmall").addEventListener("click", openFang);
+$("ringYes").addEventListener("click", () => {
+  $("ringQuestion").classList.remove("active");
+  $("ringRunning").classList.remove("hidden");
+  runRing();
+  $("ringStop").focus();
+});
+// Für jetzt genug: der Stein bleibt im Jetzt — dort hängt der Sog, das
+// Angefangene wieder aufzunehmen (Ovsiankina). Nach der Pause räumt die
+// Jetzt-Sitzung ihn still in den Strom (Konzept §4.4).
+$("ringEnough").addEventListener("click", () => {
+  closeRing();
+  renderJetzt();
+  toast("Angefangen ist angefangen.");
+});
+// Verwerfen gibt es hier nicht: Wer gerade angefangen hat, verwirft selten —
+// der Knopf dafür bleibt im Jetzt (Konzept §5.2).
+$("ringFinish").addEventListener("click", () => { closeRing(); release("done"); });
+
+/* ---------- Tastatur (Desktop) ---------- */
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const fangOffen = $("fang").classList.contains("active");
+  const ringOffen = $("ring").classList.contains("active");
+
+  if (e.key === "Escape") {
+    if (fangOffen) closeFang();
+    else if (ringOffen) closeRing();
+    return;
+  }
+  if (fangOffen || e.target.tagName === "INPUT") return;
+
+  if (e.key === "n" || e.key === "N" || e.key === "+") { e.preventDefault(); openFang(); return; }
+  if (ringOffen) return;
+  if (e.key === " " && currentScreen === "jetzt"
+      && !(document.activeElement instanceof HTMLButtonElement)) {
+    if (currentStone()) { e.preventDefault(); startRing(); }
+    return;
+  }
+  if (e.key === "z" || e.key === "Z") { e.preventDefault(); drawRandom(); }
+});
+
+/* ---------- Tab bleibt tagelang offen: beim Zurückkommen neu rechnen ---------- */
+let lastWeather = Date.now();
+
+/* Weggehen: seen merken (Jetzt-Sitzung) — aber nur, wenn kein anderer Tab
+   inzwischen geschrieben hat. Sonst überschriebe dieser Tab dessen neueren Stand. */
+function onHide() {
+  if (!fremdGeschrieben()) save();
+}
+/* Zurückkommen: erst den Stand anderer Tabs übernehmen, dann ggf. verwittern. */
+function onShow() {
+  if (ringLive) paintRing();                 // rAF war pausiert, Uhr lief weiter
+  const fremd = syncFromStorage();
+  if (!fremd && Date.now() - lastWeather < 3600000) return;
+  lastWeather = Date.now();
+  weekHue();
+  weather();
+  show(currentScreen);
+}
+document.addEventListener("visibilitychange", () => document.hidden ? onHide() : onShow());
+
+// Ein anderer Tab hat geschrieben (feuert nur in den *anderen* Tabs): sofort übernehmen
+window.addEventListener("storage", e => {
+  if (e.key === "ima.v1" && syncFromStorage()) show(currentScreen);
+});
+
+/* ---------- Erster Start (Konzept §5.6) ----------
+   Kein Tutorial, kein Modal, keine Erklärung: zwei echte erste Steine. Wer sie
+   benutzt, lernt die Verben; wer sie ignoriert, sieht sie still verwittern.
+   Der Homescreen-Stein nur am Telefon und nur, wenn Ima noch nicht installiert
+   ist — dort entscheidet die Installation über das Überleben der Daten (§7.4). */
+function firstStones() {
+  const installiert = matchMedia("(display-mode: standalone)").matches
+                   || navigator.standalone === true;
+  const telefon = matchMedia("(pointer: coarse)").matches;
+  const texte = [];
+  if (telefon && !installiert)
+    texte.push("Ima zum Homescreen hinzufügen – damit deine Steine bleiben (Teilen bzw. Menü → Zum Home-Bildschirm)");
+  texte.push("Überlegen, wann ich mein Telefon sowieso in die Hand nehme – und Ima daran hängen");
+  const t = now();
+  texte.forEach((text, i) => db.stones.push({
+    id: uid() + i, text, created: t, touched: t,
+    state: i === 0 ? "jetzt" : "strom", kind: null, released: null
+  }));
+  db.nowId = db.stones[0].id;
+  save();
+}
+
+/* ---------- Start ---------- */
+// Lab-Uhr und Varianten *vor* dem ersten Verwittern laden — sonst sähe jeder
+// Reload im Lab wie eine Abwesenheit in Höhe des Lab-Offsets aus
+if (LAB) labLoad();
+weekHue();
+if (erstStart) firstStones();
+weather();
+show("jetzt");
+
+// App-Shortcut „Fangen" (Manifest, Long-Press aufs Icon): direkt ins Textfeld
+if (new URLSearchParams(location.search).has("fangen")) {
+  history.replaceState(null, "", location.pathname);   // Reload öffnet nicht erneut
+  openFang();
+}
+
+/* ---------- PWA (Konzept §7.4) ----------
+   Offline und installierbar. Service Worker gibt es nur über https oder
+   localhost — per Doppelklick (file://) oder im WLAN über http läuft die App
+   trotzdem, nur ohne Offline-Cache und Installation. */
+if ("serviceWorker" in navigator && window.isSecureContext && location.protocol.startsWith("http"))
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+
+/* ============================================================
+   LAB — nur bei ?lab in der URL.
+   Prüfwerkzeug, kein Produkt: baut sein eigenes DOM und sein eigenes CSS,
+   hinterlässt in Markup und Stylesheet keine Spur. Fällt vor v1 ersatzlos
+   raus; now() und V bleiben (die Uhr-Indirektion ist ohnehin Hygiene).
+
+   Zweck: Die offenen Konzeptfragen sind Zeitfragen (14/28 Tage) und
+   Mengenfragen (60+ Steine). Ohne Zeitraffer sind sie nicht beobachtbar,
+   nur behauptbar.
+   ============================================================ */
+const LAB_TEXTE = [
+  "Steuerordner aus dem Regal holen", "Rückruf bei der Hausverwaltung",
+  "Versichertenkarte in die Jacke legen", "Fahrrad zur Werkstatt bringen",
+  "IBAN für die Rechnung raussuchen", "Zahnarzttermin vereinbaren",
+  "Altglas runterbringen", "Geschenk für Papa überlegen",
+  "Kündigung Fitnessstudio schreiben", "Passfoto machen lassen",
+  "Lampe im Flur reparieren", "Buchrückgabe Bibliothek",
+  "Handyvertrag vergleichen", "Kellerregal aufräumen",
+  "Mail an Sabine beantworten", "Schuhe zum Schuster",
+  "Waschmaschine entkalken", "Reisepass verlängern",
+  "Zwei Kisten zum Sperrmüll", "Blumen gießen bei Nachbarn",
+  "Rezept in der Apotheke einlösen", "Winterreifen einlagern",
+  "Notizbuch nachkaufen", "Strompreis prüfen",
+  "Foto vom Zählerstand machen", "Impfpass suchen",
+  "Adventskalender-Idee notieren", "Backup der Fotos machen",
+  "Rasierklingen bestellen", "Termin beim Optiker",
+  "Kaputte Kopfhörer entsorgen", "Bohrmaschine zurückgeben",
+  "Kontoauszüge abheften", "Fenster im Bad abdichten",
+  "Anmeldung Sportkurs", "Geburtstagskarte schreiben",
+  "Heizung entlüften", "Alte Medikamente aussortieren",
+  "Fahrradlicht nachkaufen", "Nachbarin wegen Paket fragen",
+  "Gewürzregal sortieren", "Lieblingshose flicken",
+  "Zeitschriftenabo kündigen", "Anruf bei der Krankenkasse"
+];
+
+function at(ts, fn) {                       // kurz in die Vergangenheit springen
+  const keep = labOffset;
+  labOffset = ts - Date.now();
+  fn();
+  labOffset = keep;
+}
+
+function labSave() {
+  try { localStorage.setItem("ima.lab", JSON.stringify({ labOffset, V })); } catch (e) {}
+}
+function labLoad() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ima.lab") || "{}");
+    if (typeof raw.labOffset === "number") labOffset = raw.labOffset;
+    // nur bekannte Schalter: entschiedene Varianten verschwinden aus V
+    if (raw.V) for (const k in raw.V) if (k in V) V[k] = raw.V[k];
+  } catch (e) {}
+}
+
+function labRefresh() {
+  weekHue();
+  weather();
+  show(currentScreen);
+  labPaint();
+  labSave();
+}
+
+function labJump(d) { labOffset += d * DAY; labRefresh(); }
+function labReset()  { labOffset = 0; labRefresh(); }
+
+/* 28 Tage, an jedem einmal geöffnet. Mit V.uhr="kalender" dasselbe wie +28 d,
+   mit "oeffnung" nicht — der Unterschied der beiden Uhren in einem Knopf. */
+function labDaily() {
+  for (let i = 0; i < 28; i++) { labOffset += DAY; weather(); }
+  labRefresh();
+}
+
+function labSeed(n) {
+  const t = now();
+  for (let i = 0; i < n; i++) {
+    const alter = Math.pow(Math.random(), 1.7) * 26;   // mehr Junges als Altes
+    const ts = t - Math.round(alter * DAY);
+    db.stones.push({
+      id: uid() + i, text: LAB_TEXTE[Math.floor(Math.random() * LAB_TEXTE.length)],
+      created: ts, touched: ts, state: "strom", kind: null, released: null
+    });
+  }
+  save();
+  labRefresh();
+}
+
+function labClear() {
+  db = { stones: [], nowId: null, seen: null };
+  save();
+  labRefresh();
+}
+
+/* Szenario „10 Tage weg": normal benutzt, dann verschwunden — mit einem Stein
+   im Jetzt beim Weggehen. Prüft das Kernversprechen aus §2 (null Rückkehr-Kosten)
+   und die Jetzt-Sitzung aus §4.4: Beim Zurückkommen ist das Jetzt leer.
+   Mit 35 Tagen: „5 Wochen krank" (Review B3). Mit V.uhr="kalender" ist danach
+   alles gesunken, mit "oeffnung" liegt der Strom da wie beim Weggehen. */
+function labAway(tage = 10) {
+  labClear();
+  const t = now();
+  for (let i = 0; i < 14; i++) {
+    const ts = t - Math.round((i * 0.9 + Math.random()) * DAY);
+    db.stones.push({
+      id: uid() + i, text: LAB_TEXTE[i], created: ts, touched: ts,
+      state: "strom", kind: null, released: null
+    });
+  }
+  db.stones[0].state = "jetzt";            // der frischeste lag gerade im Jetzt
+  db.nowId = db.stones[0].id;
+  for (let i = 0; i < 4; i++) {           // ein paar echte Erfolge im Grund
+    const ts = t - Math.round((i + 1) * 1.7 * DAY);
+    db.stones.push({
+      id: uid() + "d" + i, text: LAB_TEXTE[20 + i], created: ts - 2 * DAY, touched: ts,
+      state: "grund", kind: i % 3 === 0 ? "let" : "done", released: ts
+    });
+  }
+  save();
+  labJump(tage);
+}
+
+/* Szenario „2× pro Woche": acht Wochen lang alle 3,5 Tage geöffnet, jedes Mal
+   drei Gedanken gefangen und einen Stein losgelassen. Die Kehrseite von
+   V.uhr="oeffnung" (Review B3): Was nicht mehr sinkt, bleibt im Strom —
+   die offene Frage „Strom-Skalierung". Läuft in der Vergangenheit, die Uhr
+   bleibt echt. */
+function labOccasional() {
+  labClear();
+  const t = now();
+  let n = 0;
+  for (let v = 16; v >= 1; v--) {
+    at(t - v * 3.5 * DAY, () => {
+      weather();
+      const ts = now();
+      for (let i = 0; i < 3; i++, n++) db.stones.push({
+        id: uid() + n, text: LAB_TEXTE[n % LAB_TEXTE.length], created: ts, touched: ts,
+        state: "strom", kind: null, released: null
+      });
+      const pool = db.stones.filter(s => s.state === "strom");
+      const s = pool[Math.floor(Math.random() * pool.length)];
+      s.state = "grund"; s.kind = "done"; s.released = ts;
+      save();
+    });
+  }
+  labRefresh();
+}
+
+/* Szenario „Vermeider": drei Steine gleich alt, drei Umgangsarten —
+     · vermieden: dreizehnmal hochgenommen und zurückgelegt, nie angefangen
+     · bearbeitet: vor fünf Tagen wirklich zwei Minuten drangesessen
+     · ignoriert: nie angesehen
+   Prüft die Touch-Falle. Seit touched „zuletzt daran gearbeitet" heißt
+   (Konzept §4.4, entschieden 2026-11-06), sinkt der Vermiedene wie der
+   Ignorierte; nur der Bearbeitete bleibt. Bleibt als Regressionsprobe. */
+function labAvoider() {
+  labClear();
+  const t = now();
+  const mk = (text, alter) => {
+    const id = uid() + Math.random().toString(36).slice(2, 5);
+    db.stones.push({
+      id, text, created: t - alter * DAY, touched: t - alter * DAY,
+      state: "strom", kind: null, released: null
+    });
+    return id;
+  };
+  const vermieden  = mk("Steuererklärung machen", 40);
+  const bearbeitet = mk("Kellerregal aufräumen", 40);
+  ["Fahrrad zur Werkstatt bringen", "Rückruf bei der Hausverwaltung", "Schuhe zum Schuster"]
+    .forEach(text => mk(text, 34));
+  save();
+
+  for (let d = 38; d >= 2; d -= 3) at(t - d * DAY, () => { pick(vermieden); putBack(true); });
+  at(t - 5 * DAY, () => { pick(bearbeitet); startRing(); closeRing(); putBack(true); });
+
+  db.nowId = null;
+  save();
+  labRefresh();
+}
+
+/* Szenario „Brain-Dump": zwölf Steine aus drei Wochen im Strom, darunter ein
+   wichtiger im unteren Drittel — dann zehn Gedanken auf einmal gefangen.
+   Das Risiko von V.uhr="platz": Was spült der Schwall weg? Mit "kalender"
+   sinkt nichts. */
+function labBurst() {
+  labClear();
+  const t = now();
+  for (let i = 0; i < 12; i++) {
+    const ts = t - Math.round(i * 1.75 * DAY);
+    db.stones.push({
+      id: uid() + i, text: i === 8 ? "Rückruf Hausarzt wegen Befund" : LAB_TEXTE[i],
+      created: ts, touched: ts, state: "strom", kind: null, released: null
+    });
+  }
+  save();
+  for (let i = 0; i < 10; i++) capture(LAB_TEXTE[20 + i]);
+  labRefresh();
+}
+
+function labPaint() {
+  const d = Math.round(labOffset / DAY);
+  $("labClock").textContent = d === 0
+    ? "Uhr: echt"
+    : `Uhr: heute ${d > 0 ? "+" : "−"} ${Math.abs(d)} d`;
+  $("labClock").style.color = d === 0 ? "#7d8" : "#fd6";
+  // Zahlen nur hier, im Prüfwerkzeug — die Mengenfragen brauchen sie
+  const n = st => db.stones.filter(s => s.state === st).length;
+  $("labCount").textContent = `strom ${n("strom")} · jetzt ${n("jetzt")} · grund ${n("grund")}`;
+  for (const b of document.querySelectorAll("#lab [data-v]")) {
+    const [key, val] = b.dataset.v.split(":");
+    b.classList.toggle("on", V[key] === val);
+  }
+}
+
+function initLab() {
+  // labLoad() lief schon im Startblock, vor dem ersten weather()
+
+  const css = document.createElement("style");
+  css.textContent = `
+    #lab { position: fixed; top: 8px; right: 8px; z-index: 900; width: 232px;
+      font: 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+      background: #0b0d10; color: #9aa4b2; border: 1px dashed #3a4450;
+      border-radius: 8px; padding: 8px 9px; }
+    #lab h6 { font-size: 10px; letter-spacing: .18em; color: #5d6875;
+      font-weight: 400; margin-bottom: 6px; display: flex;
+      justify-content: space-between; cursor: pointer; }
+    #lab .grp { border-top: 1px solid #1c222a; padding: 6px 0 2px; }
+    #lab .lbl { color: #5d6875; margin-bottom: 3px; }
+    #lab .row { display: flex; flex-wrap: wrap; gap: 4px; }
+    #lab button { font: inherit; background: #161b22; color: #9aa4b2;
+      border: 1px solid #262d36; border-radius: 4px; padding: 3px 7px;
+      cursor: pointer; }
+    #lab button:hover { background: #1e252e; color: #cdd6e0; }
+    #lab button.on { background: #24405c; border-color: #3d6c99; color: #cfe6ff; }
+    #lab #labClock { color: #7d8; }
+    #lab #labCount { margin-bottom: 5px; }
+    #lab.zu .grp, #lab.zu #labClock, #lab.zu #labCount { display: none; }`;
+  document.head.appendChild(css);
+
+  const p = document.createElement("div");
+  p.id = "lab";
+  p.innerHTML = `
+    <h6><span>LAB</span><span id="labZu">–</span></h6>
+    <div id="labClock"></div>
+    <div id="labCount"></div>
+    <div class="grp"><div class="lbl">zeit</div><div class="row">
+      <button data-j="1">+1 d</button><button data-j="7">+7 d</button>
+      <button data-j="14">+14 d</button><button data-j="28">+28 d</button>
+      <button id="labDaily">28× +1 d</button><button id="labNow">echt</button>
+    </div></div>
+    <div class="grp"><div class="lbl">strom füllen</div><div class="row">
+      <button data-s="10">10</button><button data-s="40">40</button>
+      <button data-s="80">80</button><button id="labClear">leeren</button>
+    </div></div>
+    <div class="grp"><div class="lbl">szenario</div><div class="row">
+      <button id="labAway">10 Tage weg</button><button id="labSick">5 Wochen krank</button>
+      <button id="labOcc">2× pro Woche</button><button id="labBurst">Brain-Dump</button>
+      <button id="labAvoid">Vermeider</button><button id="labFirst">erster Start</button>
+    </div></div>
+    <div class="grp"><div class="lbl">verwittern zählt</div><div class="row">
+      <button data-v="uhr:kalender">kalendertage</button>
+      <button data-v="uhr:oeffnung">öffnungstage</button>
+      <button data-v="uhr:platz">platz</button>
+    </div></div>
+    <div class="grp"><div class="lbl">strom zeigt</div><div class="row">
+      <button data-v="strom:alle">alle</button><button data-v="strom:top">oben</button>
+    </div></div>
+`;
+  document.body.appendChild(p);
+
+  p.querySelector("h6").addEventListener("click", () => {
+    p.classList.toggle("zu");
+    $("labZu").textContent = p.classList.contains("zu") ? "+" : "–";
+  });
+  for (const b of p.querySelectorAll("[data-j]"))
+    b.addEventListener("click", () => labJump(+b.dataset.j));
+  for (const b of p.querySelectorAll("[data-s]"))
+    b.addEventListener("click", () => labSeed(+b.dataset.s));
+  for (const b of p.querySelectorAll("[data-v]"))
+    b.addEventListener("click", () => {
+      const [key, val] = b.dataset.v.split(":");
+      V[key] = val;
+      labRefresh();
+    });
+  $("labNow").addEventListener("click", labReset);
+  $("labClear").addEventListener("click", labClear);
+  $("labAway").addEventListener("click", () => labAway(10));
+  $("labSick").addEventListener("click", () => labAway(35));
+  $("labOcc").addEventListener("click", labOccasional);
+  $("labBurst").addEventListener("click", labBurst);
+  $("labDaily").addEventListener("click", labDaily);
+  $("labAvoid").addEventListener("click", labAvoider);
+  // erster Start: alle Steine weg, neu laden — Lab-Uhr und Varianten bleiben
+  $("labFirst").addEventListener("click", () => {
+    try { localStorage.removeItem("ima.v1"); } catch (e) {}
+    location.reload();
+  });
+
+  // Zähler auch nach normalen Aktionen aktuell halten — ohne Eingriff ins Produkt:
+  // save() ist eine Funktionsdeklaration, das Lab legt sich nur darum.
+  const produktSave = save;
+  save = function () { produktSave(); labPaint(); };
+
+  labRefresh();
+}
+
+if (LAB) initLab();
+</script>
+</body>
+</html>
