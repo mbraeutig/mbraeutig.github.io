@@ -44,7 +44,8 @@ self.addEventListener('install', (event) => {
 
 // ========================================
 // ACTIVATE EVENT
-// Alte Caches löschen
+// Alte Caches löschen — nur die eigenen ('ma-…'): Der Origin
+// mbraeutig.github.io ist mit anderen Apps geteilt, deren Caches bleiben unangetastet
 // ========================================
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating Service Worker...');
@@ -54,7 +55,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name !== CACHE_NAME && name !== FONT_CACHE_NAME)
+            .filter((name) => name.startsWith('ma-') && name !== CACHE_NAME && name !== FONT_CACHE_NAME)
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
