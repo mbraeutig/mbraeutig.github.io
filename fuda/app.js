@@ -847,6 +847,25 @@ function renderContent(raw) {
   return { title, html: parts.join(''), tags, relations, lines: shown };
 }
 
+// Eine Zeile als schlichter Text, z. B. in einem Knopf: ohne Tags, Links mit ihrem Text, ohne ** und Backticks
+function plainLine(text) {
+  return takeTags(text, []).replace(LINK, (_, inner) => linkLabel(inner)).replace(/\*\*|`/g, '').trim();
+}
+
+// Die erste Textzeile eines Blocks unter dem Titel, ohne Code, Tabellen, Relationen und Tag-Zeilen.
+// Für die Vorschlagsliste: „Natürliche Person, die einen Kreditantrag stellt.“
+function definitionPreview(note) {
+  const { lines, blocks } = scanFences(note.raw);
+  const inCode = i => blocks.some(b => i >= b.from && i <= b.to);
+  const start = !inCode(0) && lines[0]?.startsWith('# ') ? 1 : 0;
+  for (let i = start; i < lines.length; i++) {
+    if (inCode(i) || lines[i].trim().startsWith('|') || RELATION.exec(lines[i])) continue;
+    const text = plainLine(lines[i].trim().replace(/^([-*+>]|\d+[.)])\s+/, ''));
+    if (text && !/^([-*+]|\d+[.)])$/.test(text)) return text;
+  }
+  return '';
+}
+
 // Eine Textzeile ohne Tags: Überschrift, Linie, Zitat, Listenpunkt oder Absatz. indent: führende Leerzeichen
 function lineHTML(text, indent) {
   const heading = text.match(/^(#{1,6})\s+(.+)$/);
@@ -1564,17 +1583,34 @@ function updateAutocomplete() {
   };
   suggestions.sort((a, b) => rank(a) - rank(b));
 
-  acState = { start: cursor - replacePrefix.length, end: cursor, suggestions: suggestions.slice(0, 5), selected: 0, navigated: false };
+  // Begriffe mit geltender Definition: deren erste Textzeile, damit man beim Schreiben sieht, was bisher
+  // gilt ('' = Definition ohne Textzeile, null = keine Definition)
+  const shown = suggestions.slice(0, 5);
+  const definitions = linkMatch ? currentDefinitions() : new Map();
+  const previews = shown.map(s => {
+    const file = definitions.get(linkTarget(s.slice(2, -2)).toLowerCase());
+    const def = file && notes.find(n => n.filename === file);
+    return def ? definitionPreview(def) : null;
+  });
+
+  acState = { start: cursor - replacePrefix.length, end: cursor, suggestions: shown, previews, selected: 0, navigated: false };
   renderAutocomplete();
 }
 
 function renderAutocomplete() {
-  acBox.innerHTML = acState.suggestions.map((s, i) => `
-        <button type="button" ${act('autocomplete', String(i))} class="w-full text-left px-3 py-1.5 hover:bg-paper-code ${i === acState.selected ? 'bg-paper-code' : ''} text-ink-primary flex items-center justify-between">
-          <span>${escapeHtml(s)}</span>
-          <span class="text-[10px] text-ink-muted">${i === acState.selected ? (acState.navigated ? 'Enter / Tab' : 'Tab') : 'Einfügen'}</span>
+  acBox.innerHTML = acState.suggestions.map((s, i) => {
+    const preview = acState.previews?.[i];
+    const selected = i === acState.selected;
+    return `
+        <button type="button" ${act('autocomplete', String(i))} class="w-full text-left px-3 py-1.5 hover:bg-paper-code ${selected ? 'bg-paper-code' : ''} text-ink-primary block">
+          <span class="flex items-center justify-between gap-3">
+            <span>${escapeHtml(s)}${preview != null ? ' <span title="hat eine Definition">📖</span>' : ''}</span>
+            <span class="text-[10px] text-ink-muted shrink-0">${selected ? (acState.navigated ? 'Enter / Tab' : 'Tab') : 'Einfügen'}</span>
+          </span>
+          ${selected && preview ? `<span class="block pl-3 text-[11px] text-ink-muted font-sans truncate">${escapeHtml(preview)}</span>` : ''}
         </button>
-      `).join('');
+      `;
+  }).join('');
   acBox.classList.remove('hidden');
 }
 

@@ -7,7 +7,7 @@
        Veröffentlichen mit publish.js gesetzt (--port); muss zum Port in start.cmd passen. -->
   <meta name="fuda-server" content="http://localhost:3000">
   <!-- Version für die Hilfe: "lokal" im Fuda-Ordner, publish.js setzt Hash und Datum des Commits ein -->
-  <meta name="fuda-version" content="e6824aa · 03.11.2026 17:55">
+  <meta name="fuda-version" content="e1ce9d3 · 06.11.2026 06:56">
   <!-- Gleiche Regeln wie die CSP des Servers, für Auslieferung ohne eigene Header (GitHub Pages): alles nur
        von hier, Verbindung nur zum lokalen Fuda-Server. file: nur für den Demo-Modus (index.html als Datei).
        Skripte nur als Dateien, keine Inline-Skripte und keine onclick="…" (Klicks über data-action in app.js). -->
@@ -29,7 +29,7 @@
     @font-face { font-family: 'Lora'; font-style: normal; font-weight: 500 600; font-display: swap; src: url(vendor/fonts/lora.woff2) format('woff2'); }
   </style>
 
-  <script src="tailwind-config.js?v=3fb66a303b"></script>
+  <script src="tailwind-config.js?v=c2e783fdd9"></script>
 
   <style>
     body { background-color: #F6F4F0; color: #1F1E1C; }
@@ -162,7 +162,7 @@
       <tr><td><code>~~~java</code></td><td>Code-Block wie mit <code>```</code>, auf der deutschen Tastatur leichter: <kbd>AltGr</kbd>+<kbd>+</kbd> ist keine Tottaste. Am Ende wieder <code>~~~</code> auf eigener Zeile. Mit Sprache (<code>java</code>, <code>sql</code>, <code>bash</code> …) bekommt der Code Farben.</td></tr>
       <tr><td><kbd>?</kbd> am Anfang</td><td>suchen statt speichern</td></tr>
       <tr><td>Leerzeichen, dann <kbd>?</kbd></td><td>ein Block, der mit „?“ beginnt</td></tr>
-      <tr><td><code>#</code> oder <code>[[</code></td><td>Vorschläge; <kbd>Tab</kbd> übernimmt (oder <kbd>↓</kbd>/<kbd>↑</kbd> und <kbd>Enter</kbd>)</td></tr>
+      <tr><td><code>#</code> oder <code>[[</code></td><td>Vorschläge; <kbd>Tab</kbd> übernimmt (oder <kbd>↓</kbd>/<kbd>↑</kbd> und <kbd>Enter</kbd>). 📖 = Begriff hat eine Definition, beim gewählten steht ihre erste Zeile darunter</td></tr>
       <tr><td><kbd>Esc</kbd> oder ×</td><td>Feld leeren; ein Entwurf kommt mit „Rückgängig“ zurück</td></tr>
       <tr><td>„Gespeichert · Rückgängig“</td><td>nimmt den gerade gespeicherten Block zurück, der Text steht wieder im Feld</td></tr>
       <tr><td>Fensterwechsel</td><td>Änderungen aus VS Code &amp; Co. erscheinen, sobald du zurückkommst</td></tr>
@@ -218,7 +218,8 @@
     <h3 class="help-h">Definitionen</h3>
     <p>
       <code>definiert:: [[Begriff]]</code> (dasselbe Wort wie in Hitokoto) macht einen Block
-      zur Erklärung des Begriffs. Ändert sich die Bedeutung, einen neuen Block anlegen: Der zuletzt angelegte gilt und
+      zum geltenden Stand des Begriffs: Erklärung, Steckbrief einer Klasse oder Stand eines Tickets.
+      Ändert sich die Bedeutung oder der Stand, einen neuen Block anlegen: Der zuletzt angelegte gilt und
       steht bei <code>? [[Begriff]]</code> oben, ältere bleiben als „📜 Frühere Definition“ sichtbar.
       Weitere Relationen in der geltenden Definition
       (<code>ist-ein:: [[Person]]</code>) sind Kanten des Begriffs; bei einer neuen Definition mitnehmen.
@@ -240,6 +241,6 @@
 
   <!-- Farben für Code-Blöcke (BSD-3-Clause, vendor/README.md); muss vor app.js stehen -->
   <script src="vendor/highlight-11.11.1.min.js"></script>
-  <script src="app.js?v=3fb66a303b"></script>
+  <script src="app.js?v=c2e783fdd9"></script>
 </body>
 </html>
