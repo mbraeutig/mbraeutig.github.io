@@ -92,6 +92,7 @@
     justify-content: space-between;
   }
   header .mark {
+    padding: 4px 0;           /* das Zeichen führt zur Anleitung (§5.7) */
     font-size: 1.05rem;
     letter-spacing: .35em;
     color: var(--paper-dim);
@@ -339,6 +340,40 @@
     color: var(--stone);
   }
 
+  #grundHilfe, #hilfeZurueck {
+    align-self: center;
+    font-size: .78rem;
+    letter-spacing: .14em;
+    color: var(--stone);
+    padding: 8px 6px;
+  }
+
+  /* ---------- Screen: Anleitung ---------- */
+  #hilfe { gap: 12px; padding-bottom: calc(110px + var(--safe-b)); }
+  #hilfe h2 {
+    font-weight: 400;
+    font-size: 1rem;
+    letter-spacing: .14em;
+    color: var(--paper-dim);
+  }
+  #hilfe .lead { font-size: 1.2rem; line-height: 1.5; margin: 6px 0 4px; }
+  #hilfe em { font-style: normal; color: var(--ai); }
+  #hilfe h3 {
+    font-weight: 400;
+    font-size: .74rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ai-dim);
+    margin-top: 18px;
+  }
+  #hilfe p, #hilfe dd { font-size: .92rem; line-height: 1.65; color: var(--paper-dim); }
+  #hilfe strong { font-weight: 500; color: var(--paper); }
+  #hilfe dl { display: flex; flex-direction: column; gap: 4px; }
+  #hilfe dt { font-size: .95rem; color: var(--paper); margin-top: 8px; }
+  #hilfe .keys { font-size: .8rem; color: var(--stone); margin-top: 18px; }
+  @media (pointer: coarse) { #hilfe .keys { display: none; } }
+  #hilfeZurueck { margin-top: 18px; }
+
   /* ---------- Untere Leiste ---------- */
   nav {
     position: fixed;
@@ -436,7 +471,7 @@
 <body>
 <div id="app">
   <header>
-    <span class="mark serif"><b>今</b>&nbsp;ima</span>
+    <button class="mark serif" id="markBtn" aria-label="Anleitung"><b>今</b>&nbsp;ima</button>
     <span class="where" id="whereLabel">jetzt</span>
   </header>
 
@@ -490,6 +525,51 @@
       <button id="exportBtn">Markdown exportieren</button>
       <button id="backupBtn">Sicherung speichern</button>
       <button id="backToStrom">▵&ensp;zurück zum Strom</button>
+      <button class="toHilfe" id="grundHilfe">?&ensp;wie Ima gedacht ist</button>
+    </section>
+
+    <!-- ========== ANLEITUNG (Konzept §5.7) ==========
+         Auf Nachfrage, nie von selbst: kein Tutorial beim ersten Start (§5.6). -->
+    <section class="screen" id="hilfe">
+      <h2>Tebiki · Anleitung</h2>
+      <p class="lead serif">Ima zeigt dir <em>eine</em> Sache, hilft dir <em>anzufangen</em> und vergisst den Rest für dich.</p>
+
+      <h3>So geht's</h3>
+      <dl>
+        <dt>＋&ensp;Fangen</dt>
+        <dd>Gedanken eintippen, Enter. Er landet als Stein im Strom. Tippen daneben bricht ab.</dd>
+        <dt>Wählen</dt>
+        <dd>Im Strom einen Stein antippen. Oder „Zieh einen“, wenn du dich nicht entscheiden magst. Er liegt dann im Jetzt.</dd>
+        <dt>2 Minuten anfangen</dt>
+        <dd>Der Ring schließt sich in zwei Minuten, ohne Ziffern. Danach: noch zwei Minuten, für jetzt genug oder fertig. Fällt dir unterwegs etwas ein: „＋ Gedanken fangen“, der Ring läuft weiter.</dd>
+        <dt>Loslassen</dt>
+        <dd>„✓ losgelassen“, wenn es erledigt ist. „– verworfen“, wenn es nicht mehr dran ist. Beides ist gleich gut. „↑ zurücklegen“ legt den Stein zurück in den Strom.</dd>
+      </dl>
+      <p>Zu groß zum Anfangen? Nach dem Ring „＋ nächsten kleinen Schritt fangen“.</p>
+
+      <h3>Was von selbst passiert</h3>
+      <p>Ein Stein, an dem du länger nicht gearbeitet hast, verblasst. Nach etwa vier Wochen sinkt er still zum Flussgrund. So bleibt der Strom leicht, auch nach einer langen Pause.</p>
+      <p>Nichts geht verloren: Tipp im Flussgrund einen Kiesel an, und „↑ zurück in den Strom“ holt ihn wieder.</p>
+      <p>Der Stein im Jetzt gilt für eine Sitzung. Warst du ein paar Stunden weg, liegt er wieder im Strom.</p>
+
+      <h3>Wohin der Rest gehört</h3>
+      <p><strong>Termine</strong> in den Kalender, mit Wecker zum Losgehen. Der Handgriff davor ist ein Stein: „Versichertenkarte in die Jacke“.</p>
+      <p><strong>Fristen</strong> in den Kalender, mit Wecker an dem Tag, an dem du es machen kannst, nicht am letzten.</p>
+      <p><strong>Erinnern</strong> tut Ima nie. Leg das 今 auf den Homescreen und häng das Öffnen an etwas, das du sowieso tust: Kaffee, Bus, Zähneputzen.</p>
+      <p><strong>Wiederkehrendes</strong> ist eine Gewohnheit, kein Stein.</p>
+
+      <h3>Warum so</h3>
+      <p>Bei ADHS fehlt selten das Wissen, was zu tun ist. Schwer ist der Anfang. Deshalb verlangt Ima nie, dass du fertig wirst, nur zwei Minuten Anfang. Oft trägt er weiter.</p>
+      <p>Eine lange Liste lähmt und lädt zum Umsortieren ein. Ima zeigt eine Sache. Wer nicht wählen kann, zieht.</p>
+      <p>Keine Zahlen, keine Serien, kein Rot, kein „überfällig“. Was liegen bleibt, verwittert leise, statt dich anzuklagen. Nach einer Pause sieht Ima so ruhig aus wie vorher.</p>
+
+      <h3>Deine Steine</h3>
+      <p>Sie liegen nur auf diesem Gerät, in diesem Browser. Kein Konto, keine Cloud, kein Tracking. Zum Homescreen hinzugefügt bleiben sie sicher; im Browser allein kann Safari sie nach einer Woche ohne Besuch löschen.</p>
+      <p>Im Flussgrund legt „Sicherung speichern“ eine Datei mit allen Steinen ab, „Markdown exportieren“ eine lesbare Liste der Kiesel.</p>
+
+      <p class="keys">Tastatur: N fangen · Leertaste anfangen · Z zieh einen · Esc schließen · ? Anleitung</p>
+
+      <button id="hilfeZurueck">▵&ensp;zurück</button>
     </section>
 
     <!-- ========== ENSŌ-RING ========== -->
@@ -725,9 +805,10 @@ function toast(msg) {
 }
 
 /* ---------- Navigation ---------- */
-const screens = { jetzt: $("jetzt"), strom: $("strom"), grund: $("grund") };
-const labels  = { jetzt: "jetzt", strom: "der strom", grund: "flussgrund" };
+const screens = { jetzt: $("jetzt"), strom: $("strom"), grund: $("grund"), hilfe: $("hilfe") };
+const labels  = { jetzt: "jetzt", strom: "der strom", grund: "flussgrund", hilfe: "anleitung" };
 let currentScreen = "jetzt";
+let vorHilfe = "jetzt";                     // wohin „zurück“ aus der Anleitung führt
 
 function show(name) {
   currentScreen = name;
@@ -735,7 +816,8 @@ function show(name) {
   for (const k in screens) screens[k].classList.toggle("active", k === name);
   $("whereLabel").textContent = labels[name];
   $("tabJetzt").classList.toggle("on", name === "jetzt");
-  $("tabStrom").classList.toggle("on", name !== "jetzt");
+  $("tabStrom").classList.toggle("on", name === "strom" || name === "grund");
+  if (name === "hilfe") screens.hilfe.scrollTop = 0;
   if (name === "jetzt") renderJetzt();
   if (name === "strom") renderStrom();
   if (name === "grund") renderGrund();
@@ -1098,6 +1180,18 @@ $("tabStrom").addEventListener("click", () => show("strom"));
 $("toGrund").addEventListener("click", () => show("grund"));
 $("backToStrom").addEventListener("click", () => show("strom"));
 
+/* Anleitung (Konzept §5.7): Auf Nachfrage, nie von selbst. Nicht über dem
+   laufenden Ring — der deckt den Bildschirm ab, man sähe nur das Etikett wechseln. */
+function openHilfe() {
+  if ($("ring").classList.contains("active") || currentScreen === "hilfe") return;
+  vorHilfe = currentScreen;
+  show("hilfe");
+}
+function closeHilfe() { show(vorHilfe); }
+$("markBtn").addEventListener("click", () => currentScreen === "hilfe" ? closeHilfe() : openHilfe());
+$("grundHilfe").addEventListener("click", openHilfe);
+$("hilfeZurueck").addEventListener("click", closeHilfe);
+
 $("startBtn").addEventListener("click", startRing);
 $("doneBtn").addEventListener("click", () => release("done"));
 $("dropBtn").addEventListener("click", () => release("let"));
@@ -1138,9 +1232,11 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     if (fangOffen) closeFang();
     else if (ringOffen) closeRing();
+    else if (currentScreen === "hilfe") closeHilfe();
     return;
   }
   if (fangOffen || e.target.tagName === "INPUT") return;
+  if (e.key === "?") { e.preventDefault(); currentScreen === "hilfe" ? closeHilfe() : openHilfe(); return; }
 
   if (e.key === "n" || e.key === "N" || e.key === "+") { e.preventDefault(); openFang(); return; }
   if (ringOffen) return;
