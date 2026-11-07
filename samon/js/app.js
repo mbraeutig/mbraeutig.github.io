@@ -187,6 +187,13 @@ function renderBook() {
   }
 }
 
+// Tageswechsel (KONZEPT.md §10): Eine PWA bleibt tagelang offen. Kommt sie zurück
+// und das Datum passt nicht mehr zum Tagesgarten, liegt der neue Garten da.
+function checkDay() {
+  if (document.visibilityState !== 'visible' || state.mode !== 'day' || input.dragging()) return;
+  if (dayKey(new Date()) !== state.garden.key) load('day');
+}
+
 // ---------- Verdrahtung ----------
 
 const input = bindInput(canvas, {
@@ -205,15 +212,11 @@ const observer = new ResizeObserver(resize);
 try { observer.observe(canvas, { box: 'device-pixel-content-box' }); } catch { observer.observe(canvas); }
 darkMode.addEventListener('change', () => { draw(); renderBook(); });
 
-// Tageswechsel (KONZEPT.md §10): Eine PWA bleibt tagelang offen. Kommt sie zurück
-// und das Datum passt nicht mehr zum Tagesgarten, liegt der neue Garten da.
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || state.mode !== 'day' || input.dragging()) return;
-  if (dayKey(new Date()) !== state.garden.key) load('day');
-});
+document.addEventListener('visibilitychange', checkDay);
 
 try { navigator.storage?.persist?.()?.catch(() => {}); } catch { /* Ablehnung ignorieren */ }
-navigator.serviceWorker?.register('sw.js').catch(() => {});
+// Erst nach dem Laden, damit das Vorhalten der Dateien nicht mit dem Start konkurriert.
+addEventListener('load', () => navigator.serviceWorker?.register('sw.js').catch(() => {}));
 
 load('day');
 renderBook();

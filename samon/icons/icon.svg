@@ -1,31 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Samon: ein Stein im Kies, drei Ringe, gerade Rillen. Alles Wichtige liegt im
-       sicheren Kreis (Radius 205) für maskable Icons. -->
+       sicheren Kreis (Radius 205) für maskable Icons. Rille = breiter Strich in
+       Groove-Farbe, darauf ein schmaler Grat. -->
   <defs>
     <mask id="frei">
       <rect width="512" height="512" fill="#fff"/>
       <circle cx="256" cy="256" r="196" fill="#000"/>
     </mask>
+    <path id="rillen" d="M-20 40H532M-20 88H532M-20 136H532M-20 184H532M-20 232H532M-20 280H532M-20 328H532M-20 376H532M-20 424H532M-20 472H532"/>
+    <g id="ringe">
+      <circle cx="256" cy="256" r="172"/>
+      <circle cx="256" cy="256" r="134"/>
+      <circle cx="256" cy="256" r="96"/>
+    </g>
+    <path id="stein" d="M184 268c-3-27 15-50 42-58 21-6 35 1 53-4 28-8 54 9 58 37 4 31-15 55-48 61-23 4-36-2-55 2-28 5-48-11-50-38z"/>
   </defs>
-  <rect id="grund" width="512" height="512" rx="0" fill="#DADBD3"/>
+  <rect width="512" height="512" fill="#DADBD3"/>
   <g mask="url(#frei)" stroke-linecap="round">
-    <g stroke="#BFC2B8" stroke-width="16">
-      <path d="M-20 40H532M-20 88H532M-20 136H532M-20 184H532M-20 232H532M-20 280H532M-20 328H532M-20 376H532M-20 424H532M-20 472H532"/>
-    </g>
-    <g stroke="#EFF0EA" stroke-width="6">
-      <path d="M-20 40H532M-20 88H532M-20 136H532M-20 184H532M-20 232H532M-20 280H532M-20 328H532M-20 376H532M-20 424H532M-20 472H532"/>
-    </g>
+    <use href="#rillen" stroke="#BFC2B8" stroke-width="16"/>
+    <use href="#rillen" stroke="#EFF0EA" stroke-width="6"/>
   </g>
   <g fill="none">
-    <circle cx="256" cy="256" r="172" stroke="#BFC2B8" stroke-width="16"/>
-    <circle cx="256" cy="256" r="172" stroke="#EFF0EA" stroke-width="6"/>
-    <circle cx="256" cy="256" r="134" stroke="#BFC2B8" stroke-width="16"/>
-    <circle cx="256" cy="256" r="134" stroke="#EFF0EA" stroke-width="6"/>
-    <circle cx="256" cy="256" r="96" stroke="#BFC2B8" stroke-width="16"/>
-    <circle cx="256" cy="256" r="96" stroke="#EFF0EA" stroke-width="6"/>
+    <use href="#ringe" stroke="#BFC2B8" stroke-width="16"/>
+    <use href="#ringe" stroke="#EFF0EA" stroke-width="6"/>
   </g>
-  <path d="M184 268c-3-27 15-50 42-58 21-6 35 1 53-4 28-8 54 9 58 37 4 31-15 55-48 61-23 4-36-2-55 2-28 5-48-11-50-38z" fill="#6E7B47" opacity=".6" transform="translate(256 260) scale(1.16) translate(-256 -260)"/>
-  <path d="M184 268c-3-27 15-50 42-58 21-6 35 1 53-4 28-8 54 9 58 37 4 31-15 55-48 61-23 4-36-2-55 2-28 5-48-11-50-38z" fill="#000" opacity=".22" transform="translate(4 8)"/>
-  <path d="M184 268c-3-27 15-50 42-58 21-6 35 1 53-4 28-8 54 9 58 37 4 31-15 55-48 61-23 4-36-2-55 2-28 5-48-11-50-38z" fill="#3B4046"/>
+  <use href="#stein" fill="#6E7B47" opacity=".6" transform="translate(256 260) scale(1.16) translate(-256 -260)"/>
+  <use href="#stein" fill="#000" opacity=".22" transform="translate(4 8)"/>
+  <use href="#stein" fill="#3B4046"/>
   <ellipse cx="232" cy="232" rx="24" ry="9" transform="rotate(-14 232 232)" fill="#9AA2A8" opacity=".45"/>
 </svg>

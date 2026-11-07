@@ -11,6 +11,10 @@ const ARROWS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowR
 export function bindInput(canvas, game) {
   let pointer = null; // pointerId des ziehenden Zeigers, null = kein Zug
 
+  // Ein Zug gilt nur, solange der Canvas den Zeiger noch hält. Geht das Ende eines
+  // Zugs verloren (App-Wechsel, eingefrorener Tab), hängt so nichts fest.
+  const dragging = () => pointer !== null && canvas.hasPointerCapture(pointer);
+
   // clamp: beim Ziehen über den Rand hinaus zählt das Randfeld, damit ein Wisch nichts verliert.
   function cellAt(e, n, clamp) {
     const r = canvas.getBoundingClientRect();
@@ -24,7 +28,7 @@ export function bindInput(canvas, game) {
   }
 
   canvas.addEventListener('pointerdown', e => {
-    if (pointer !== null || e.button !== 0) return;
+    if (dragging() || e.button !== 0) return;
     const { garden, path } = game.state();
     const i = cellAt(e, garden.n, false);
     if (i < 0) return;
@@ -40,7 +44,7 @@ export function bindInput(canvas, game) {
   });
 
   canvas.addEventListener('pointermove', e => {
-    if (e.pointerId !== pointer) return;
+    if (e.pointerId !== pointer || !dragging()) return;
     const { garden, path } = game.state();
     const next = stepToward(garden, path, cellAt(e, garden.n, true));
     if (next !== path) game.setPath(next);
@@ -63,5 +67,5 @@ export function bindInput(canvas, game) {
     if (next !== path) game.setPath(next);
   });
 
-  return { dragging: () => pointer !== null };
+  return { dragging };
 }
