@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Samon 砂紋</title>
+  <meta name="description" content="Ein Garten, eine Linie, ein Buch.">
+  <meta name="theme-color" content="#E8E9E4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15181A" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <div class="mark" aria-hidden="true">砂紋</div>
+      <div>
+        <h1>Samon</h1>
+        <p class="sub" id="sub">Tagesgarten</p>
+      </div>
+    </header>
+
+    <section class="board" aria-label="Garten">
+      <div class="frame">
+        <canvas id="garden" tabindex="0"
+          aria-label="Zen-Garten. Ziehe eine Linie durch alle Kiesfelder. Pfeiltasten bewegen die Harke, Rücktaste nimmt zurück, Escape harkt neu."></canvas>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+      <div class="controls">
+        <button id="reset" type="button">Neu harken</button>
+        <button id="practice" type="button">Übungsgarten</button>
+        <button id="another" type="button" hidden>Anderer Garten</button>
+        <button id="back" type="button" class="quiet" hidden>Zum Tagesgarten</button>
+      </div>
+      <div class="breath" id="breath" hidden>
+        <span class="ring" id="ring" aria-hidden="true"></span>
+        <span id="breath-text">Einatmen</span>
+      </div>
+    </section>
+
+    <section class="book" aria-labelledby="book-title">
+      <h2 id="book-title">Gartenbuch</h2>
+      <div class="thumbs" id="book"></div>
+    </section>
+
+    <section class="about">
+      <h2>Über Samon</h2>
+      <p class="rule">Ziehe eine einzige Harkenlinie durch den Kies. Sie beginnt am Kreis, berührt jedes Kiesfeld genau einmal und umgeht die Steine.</p>
+      <p class="note">Jeden Tag liegt ein neuer Garten da, für alle gleich. Es gibt keine Punkte, keine Serie und keine Zeitmessung, nur den Garten und die eine Linie.</p>
+    </section>
+  </main>
+</body>
+</html>
