@@ -1,0 +1,106 @@
+// Minamo service worker (taken over from Carry): offline start, nothing else.
+// Network first, cache as fallback: online always the newest version (no stale app after a
+// deploy), offline the last version that was loaded. A slow network gets 3 seconds, then the
+// cached version answers and the network response only updates the cache for the next start.
+// Files with a content hash in their name never change, so they come from the cache first.
+// Only registered in production builds.
+const CACHE = 'minamo';
+const NETWORK_TIMEOUT = 3000;
+
+// Build files with a content hash in their name, e.g. main-SWOATOGQ.js or styles-3EKIOEEX.css.
+const HASHED = /\/[a-z]+-[A-Z0-9]{8}\.(?:js|css)$/;
+// Same for the self-hosted fonts (referenced from the CSS, so not cleaned up by HASHED).
+const IMMUTABLE = /-[A-Z0-9]{8}\.(?:js|css|woff2)$/;
+
+// The page that installs the worker was loaded without it, so nothing would be cached until the
+// second visit. Caching the app page right at install makes one visit enough for an offline start.
+// A failure (e.g. the network drops) must not stop the install: the next visit caches it anyway.
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(cacheAppPage().catch(() => {}));
+});
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  if (IMMUTABLE.test(new URL(request.url).pathname)) {
+    event.respondWith(cacheFirst(event, request));
+    return;
+  }
+  const network = fetch(request);
+  // Stores whatever the network brings, even if the cache answered first.
+  event.waitUntil(network.then((response) => store(request, response)).catch(() => {}));
+  event.respondWith(networkFirst(request, network));
+});
+
+async function networkFirst(request, network) {
+  // Offline: a URL with a query (share target, step 12) must still find the cached app page.
+  const cached = () => caches.match(request, { ignoreSearch: request.mode === 'navigate' });
+  const slow = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT)).then(cached);
+  try {
+    // The cache only wins after the timeout, and only if it has a copy (else keep waiting).
+    return (await Promise.race([network, slow])) ?? (await network);
+  } catch {
+    return (await cached()) ?? Response.error();
+  }
+}
+
+async function cacheFirst(event, request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  event.waitUntil(store(request, response));
+  return response;
+}
+
+async function store(request, response) {
+  // Opaque: cross-origin responses without CORS; still worth keeping for offline.
+  if (!response.ok && response.type !== 'opaque') return;
+  const copy = response.clone(); // now, before the page reads the body
+  const cache = await caches.open(CACHE);
+  if (request.mode !== 'navigate') {
+    await cache.put(request, copy);
+    return;
+  }
+  // A new app page replaces the cached one only together with its build files. Otherwise a deploy
+  // that arrives in the background (slow network: the cached page answered) would leave a page
+  // whose scripts are missing – offline a blank screen. If a file fails, the old page stays.
+  const html = await copy.clone().text();
+  await cacheBuildFiles(cache, html, request.url);
+  await cache.put(request, copy);
+  await removeOldBuildFiles(cache, html);
+}
+
+// The start page of the scope (e.g. /minamo/) with its build files, as a navigation would store it.
+async function cacheAppPage() {
+  const url = self.registration.scope;
+  const response = await fetch(url);
+  if (!response.ok) return;
+  const cache = await caches.open(CACHE);
+  const html = await response.clone().text();
+  await cacheBuildFiles(cache, html, url);
+  await cache.put(url, response);
+}
+
+// The hashed files the page references: scripts, styles and the fonts in its inline CSS.
+async function cacheBuildFiles(cache, html, pageUrl) {
+  for (const name of new Set(html.match(/[\w./-]+-[A-Z0-9]{8}\.(?:js|css|woff2)/g))) {
+    const url = new URL(name, pageUrl).href;
+    if (await cache.match(url)) continue;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    await cache.put(url, response);
+  }
+}
+
+// After a deploy the old hashed files are never requested again: drop the ones the freshly
+// loaded page no longer references, so the cache does not grow with every deploy.
+async function removeOldBuildFiles(cache, html) {
+  for (const cached of await cache.keys()) {
+    const path = new URL(cached.url).pathname;
+    if (HASHED.test(path) && !html.includes(path.slice(path.lastIndexOf('/') + 1))) {
+      await cache.delete(cached);
+    }
+  }
+}

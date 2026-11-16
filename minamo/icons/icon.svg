@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 水面: a drop on the water surface and its rings – the ripple Minamo shows when an entry is sent. -->
+  <rect width="512" height="512" rx="112" fill="#F7F5F0"/>
+  <g fill="none" stroke="#3E5C76">
+    <circle cx="256" cy="256" r="78" stroke-width="14"/>
+    <circle cx="256" cy="256" r="134" stroke-width="9" opacity="0.55"/>
+    <circle cx="256" cy="256" r="186" stroke-width="5" opacity="0.28"/>
+  </g>
+  <circle cx="256" cy="256" r="26" fill="#2B2A28"/>
+</svg>
