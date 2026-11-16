@@ -7,10 +7,10 @@
 const CACHE = 'minamo';
 const NETWORK_TIMEOUT = 3000;
 
-// Build files with a content hash in their name, e.g. main-SWOATOGQ.js or styles-3EKIOEEX.css.
-const HASHED = /\/[a-z]+-[A-Z0-9]{8}\.(?:js|css)$/;
-// Same for the self-hosted fonts (referenced from the CSS, so not cleaned up by HASHED).
+// Build files with a content hash in their name, e.g. main-SWOATOGQ.js, styles-3EKIOEEX.css or
+// media/noto-serif-latin-wght-normal-SE7LSV22.woff2.
 const IMMUTABLE = /-[A-Z0-9]{8}\.(?:js|css|woff2)$/;
+const BUILD_FILE = /[\w./-]+-[A-Z0-9]{8}\.(?:js|css|woff2)/g;
 
 // The page that installs the worker was loaded without it, so nothing would be cached until the
 // second visit. Caching the app page right at install makes one visit enough for an offline start.
@@ -37,12 +37,15 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(request, network) {
   // Offline: a URL with a query (share target, step 12) must still find the cached app page.
   const cached = () => caches.match(request, { ignoreSearch: request.mode === 'navigate' });
-  const slow = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT)).then(cached);
+  let timer;
+  const slow = new Promise((resolve) => (timer = setTimeout(resolve, NETWORK_TIMEOUT))).then(cached);
   try {
     // The cache only wins after the timeout, and only if it has a copy (else keep waiting).
     return (await Promise.race([network, slow])) ?? (await network);
   } catch {
     return (await cached()) ?? Response.error();
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -67,9 +70,18 @@ async function store(request, response) {
   // that arrives in the background (slow network: the cached page answered) would leave a page
   // whose scripts are missing – offline a blank screen. If a file fails, the old page stays.
   const html = await copy.clone().text();
-  await cacheBuildFiles(cache, html, request.url);
-  await cache.put(request, copy);
-  await removeOldBuildFiles(cache, html);
+  const files = await cacheBuildFiles(cache, html, self.registration.scope);
+  // Not the app page (e.g. an icon opened in a tab): keep it, but leave the build files alone.
+  if (!files.size) {
+    await cache.put(request, copy);
+    return;
+  }
+  // One app page, stored without its query: share-target URLs would otherwise pile up, each an
+  // old page whose build files get removed – and the offline lookup (ignoreSearch) might pick one.
+  const page = new URL(request.url);
+  page.search = '';
+  await cache.put(page.href, copy);
+  await removeOldBuildFiles(cache, files);
 }
 
 // The start page of the scope (e.g. /minamo/) with its build files, as a navigation would store it.
@@ -83,23 +95,33 @@ async function cacheAppPage() {
   await cache.put(url, response);
 }
 
-// The hashed files the page references: scripts, styles and the fonts in its inline CSS.
-async function cacheBuildFiles(cache, html, pageUrl) {
-  for (const name of new Set(html.match(/[\w./-]+-[A-Z0-9]{8}\.(?:js|css|woff2)/g))) {
-    const url = new URL(name, pageUrl).href;
-    if (await cache.match(url)) continue;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    await cache.put(url, response);
-  }
+// The hashed files a page or stylesheet references: scripts, styles and, inside the styles, the
+// fonts. Relative names resolve against the referencing file. Returns the URLs of all of them.
+async function cacheBuildFiles(cache, text, baseUrl, found = new Set()) {
+  const names = new Set(text.match(BUILD_FILE));
+  await Promise.all(
+    [...names].map(async (name) => {
+      const url = new URL(name, baseUrl).href;
+      if (found.has(url)) return;
+      found.add(url);
+      let response = await cache.match(url);
+      if (!response) {
+        response = await fetch(url);
+        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        await cache.put(url, response.clone());
+      }
+      if (url.endsWith('.css')) await cacheBuildFiles(cache, await response.text(), url, found);
+    }),
+  );
+  return found;
 }
 
 // After a deploy the old hashed files are never requested again: drop the ones the freshly
 // loaded page no longer references, so the cache does not grow with every deploy.
-async function removeOldBuildFiles(cache, html) {
+async function removeOldBuildFiles(cache, keep) {
   for (const cached of await cache.keys()) {
-    const path = new URL(cached.url).pathname;
-    if (HASHED.test(path) && !html.includes(path.slice(path.lastIndexOf('/') + 1))) {
+    const inScope = cached.url.startsWith(self.registration.scope);
+    if (inScope && IMMUTABLE.test(new URL(cached.url).pathname) && !keep.has(cached.url)) {
       await cache.delete(cached);
     }
   }
