@@ -14,6 +14,9 @@
   <script>
     // Darstellung chosen in the help, applied before the first paint (no flash of the other colors).
     // Same keys and values as loadTheme() and loadTextSize() in storage.ts; the app takes over from here.
+    // The app scrolls to the end of the stream itself; a reload must not put back the old position
+    // afterwards (it did now and then, leaving the stream at the top).
+    history.scrollRestoration = 'manual';
     try {
       var theme = localStorage.getItem('minamo.theme');
       if (theme === 'light' || theme === 'dark') {
@@ -27,5 +30,5 @@
 <link rel="stylesheet" href="styles-FIGEBUZG.css"></head>
 <body>
   <app-stream-page></app-stream-page>
-<script src="main-PWI4Q2KW.js" type="module"></script></body>
+<script src="main-ZOZ3OZFY.js" type="module"></script></body>
 </html>
