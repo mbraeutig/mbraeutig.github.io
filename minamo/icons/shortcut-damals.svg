@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- App shortcut "Damals": a clock with an arrow running back, on paper, inside the safe zone. -->
+  <rect width="192" height="192" fill="#F7F5F0"/>
+  <g fill="none" stroke="#3E5C76" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 98 A 36 36 0 1 1 72 124"/>
+    <path d="M48 86 L60 100 L72 86"/>
+    <path d="M96 76 L96 98 L111 107"/>
+  </g>
+</svg>
