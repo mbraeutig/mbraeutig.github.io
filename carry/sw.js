@@ -60,10 +60,13 @@ async function store(request, response) {
   // A new app page replaces the cached one only together with its build files. Otherwise a deploy
   // that arrives in the background (slow network: the cached page answered) would leave a page
   // whose scripts are missing – offline a blank screen. If a file fails, the old page stays.
+  // Stored without its query ("?add=…", a share): one copy of the page, read with ignoreSearch (step 96).
   const html = await copy.clone().text();
-  await cacheBuildFiles(cache, html, request.url);
-  await cache.put(request, copy);
-  await removeOldBuildFiles(cache, html);
+  const page = new URL(request.url);
+  page.search = '';
+  await cacheBuildFiles(cache, html, page.href);
+  await cache.put(page.href, copy);
+  await removeOutdated(cache, html, page.pathname);
 }
 
 // The hashed files the page references: scripts, styles and the fonts in its inline CSS.
@@ -78,12 +81,13 @@ async function cacheBuildFiles(cache, html, pageUrl) {
 }
 
 // After a deploy the old hashed files are never requested again: drop the ones the freshly
-// loaded page no longer references, so the cache does not grow with every deploy.
-async function removeOldBuildFiles(cache, html) {
+// loaded page no longer references, so the cache does not grow with every deploy. Copies of the
+// page with a query (stored before step 96, one per share) go too: offline, such an old copy could
+// answer with build files that are long gone – a blank page.
+async function removeOutdated(cache, html, pagePath) {
   for (const cached of await cache.keys()) {
-    const path = new URL(cached.url).pathname;
-    if (HASHED.test(path) && !html.includes(path.slice(path.lastIndexOf('/') + 1))) {
-      await cache.delete(cached);
-    }
+    const url = new URL(cached.url);
+    const oldBuild = HASHED.test(url.pathname) && !html.includes(url.pathname.slice(url.pathname.lastIndexOf('/') + 1));
+    if (oldBuild || (url.pathname === pagePath && url.search)) await cache.delete(cached);
   }
 }
