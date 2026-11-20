@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Minamo – Probelauf Aufnahmen</title>
+<!--
+  Probelauf für Schritt 33 („Aufnahmen“) am Pixel. Kein Teil von Minamo: eigene Datenbank „minamo-probe“,
+  kein Service Worker. Prüft den gemischten +, die Recorder-Datei, den eingebauten Player im Strom
+  (hell/dunkel, ⋮ unter ⋮), den Sperrbildschirm und das Abspielen aus IndexedDB nach dem Neuladen.
+-->
+<style>
+:root {
+  color-scheme: light;
+  --surface: #F7F5F0;
+  --surface-raised: #FFFFFF;
+  --border: #E6E2D9;
+  --ink: #2B2A28;
+  --ink-muted: #8A867E;
+  --accent: #3E5C76;
+  --select: #EFECE5;
+  --font-entry: 'Noto Serif', Georgia, 'Times New Roman', serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #1C1B1A; --surface-raised: #262523; --border: #34322F;
+    --ink: #F7F5F0; --ink-muted: #9A968E; --accent: #8FA9C4; --select: #2A2927;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1C1B1A; --surface-raised: #262523; --border: #34322F;
+  --ink: #F7F5F0; --ink-muted: #9A968E; --accent: #8FA9C4; --select: #2A2927;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 680px;
+  padding: 16px 16px 64px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-ui);
+}
+h1 { font: 400 20px var(--font-entry); margin: 4px 0 2px; }
+h2 { font: 500 12px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); margin: 32px 0 10px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--ink-muted); font-size: 13px; }
+code { font-size: 13px; }
+button, .pick {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 16px; margin: 0 8px 8px 0;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-raised); color: var(--accent);
+  font: 15px var(--font-ui); cursor: pointer;
+}
+.pick input { display: none; }
+.theme button[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.variant { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.variant b { font-weight: 600; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 14px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+.checks input { width: 20px; height: 20px; accent-color: var(--accent); }
+.facts { margin: 8px 0 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); padding: 6px 12px; font-size: 14px; }
+.facts div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.facts div:last-child { border-bottom: 0; }
+.facts span:last-child { color: var(--ink-muted); text-align: right; overflow-wrap: anywhere; }
+.facts .bad { color: #B3261E; }
+
+/* Der Strom wie in Minamo: Datum zentriert, „Uhrzeit ⋮“ rechts über jedem Eintrag, darunter der Inhalt */
+.stream { margin: 0 -16px; padding: 8px 16px 16px; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.day { font: 500 12px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); text-align: center; margin: 18px 0 6px; }
+.entry { margin: 0 0 8px; }
+.meta { display: flex; justify-content: flex-end; align-items: center; font: 13px/1 var(--font-ui); font-variant-numeric: tabular-nums; color: var(--ink-muted); padding: 2px 0 1px; }
+.more { width: 28px; height: 22px; margin: 0 -6px 0 4px; display: grid; place-items: center; opacity: .8; }
+.more::before { content: '⋮'; font-size: 18px; line-height: 1; }
+.text { margin: 0; font: 17px/1.6 var(--font-entry); overflow-wrap: anywhere; }
+.m { color: var(--accent); }
+.entry audio { display: block; width: 100%; margin: 6px 0 2px; }
+.entry audio + .text { margin-top: 4px; }
+.label { font: 12px var(--font-ui); color: var(--ink-muted); margin: 2px 0 0; }
+
+textarea { width: 100%; min-height: 96px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); color: var(--ink); font: 15px/1.45 var(--font-ui); }
+#report { min-height: 160px; font: 12px/1.45 ui-monospace, Consolas, monospace; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+
+<h1>Minamo · Probelauf Aufnahmen</h1>
+<p class="muted">Für Schritt 33. Am Pixel in Chrome öffnen und von oben nach unten durchgehen; am Ende „Ergebnis kopieren“ und an Claude schicken. Nichts hier berührt Minamo.</p>
+
+<div class="theme" role="group" aria-label="Darstellung">
+  <button type="button" data-theme-choice="system" aria-pressed="true">System</button>
+  <button type="button" data-theme-choice="light" aria-pressed="false">Hell</button>
+  <button type="button" data-theme-choice="dark" aria-pressed="false">Dunkel</button>
+</div>
+
+<h2>1 · Was bietet der + an?</h2>
+<p>Jeden Knopf einmal antippen, ansehen, was Android anbietet, abhaken. Dann bei A eine <b>Recorder-Datei</b> wählen, bei B eine <b>MP3</b> (falls vorhanden).</p>
+
+<div class="variant" data-variant="A">
+  <label class="pick">A · Bild oder Aufnahme<input type="file" accept="image/*,audio/*,.m4a,.mp3"></label>
+  <div class="muted">Der geplante + für Schritt 33: <code>image/*,audio/*,.m4a,.mp3</code></div>
+  <div class="checks">
+    <label><input type="checkbox" data-check="Kamera">Kamera</label>
+    <label><input type="checkbox" data-check="Galerie/Fotos">Galerie/Fotos</label>
+    <label><input type="checkbox" data-check="Dateien">Dateien</label>
+    <label><input type="checkbox" data-check="Recorder-Datei wählbar">Recorder-Datei wählbar</label>
+  </div>
+</div>
+<div class="variant" data-variant="B">
+  <label class="pick">B · Nur Aufnahme<input type="file" accept="audio/*,.m4a,.mp3"></label>
+  <div class="muted">Falls A nicht taugt: <code>audio/*,.m4a,.mp3</code></div>
+  <div class="checks">
+    <label><input type="checkbox" data-check="Dateien">Dateien</label>
+    <label><input type="checkbox" data-check="Recorder-App">Recorder-App angeboten</label>
+    <label><input type="checkbox" data-check="Recorder-Datei wählbar">Recorder-Datei wählbar</label>
+  </div>
+</div>
+<div class="variant" data-variant="C">
+  <label class="pick">C · Nur Bild<input type="file" accept="image/*"></label>
+  <div class="muted">Zum Vergleich, der + aus Schritt 27: <code>image/*</code></div>
+  <div class="checks">
+    <label><input type="checkbox" data-check="Kamera">Kamera</label>
+    <label><input type="checkbox" data-check="Galerie/Fotos">Galerie/Fotos</label>
+    <label><input type="checkbox" data-check="Dateien">Dateien</label>
+  </div>
+</div>
+
+<div id="files"></div>
+
+<h2>2 · So sähe es im Strom aus</h2>
+<p>Bis eine Datei gewählt ist, spielt ein Testton (8 s). Oben auf „Hell“ und „Dunkel“ tippen und vergleichen. Der zweite Player versucht, sein Menü (⋮) auszublenden.</p>
+<div class="stream" id="stream">
+  <div class="day">Heute</div>
+  <div class="entry"><div class="meta">8:07<span class="more"></span></div><p class="text">Früh wach, raus an den See. <span class="m">#achtsamkeit</span></p></div>
+  <div class="entry"><div class="meta">14:32<span class="more"></span></div><audio controls preload="metadata" data-player></audio><p class="text">Mit <span class="m">@Anna</span> im Café: umziehen oder bleiben? <span class="m">#wohnen</span></p></div>
+  <div class="entry"><div class="meta">18:10<span class="more"></span></div><audio controls preload="metadata" controlslist="nodownload noplaybackrate" disableremoteplayback data-player></audio><p class="label">Variante ohne Menü (<code>controlslist="nodownload noplaybackrate"</code>)</p></div>
+  <div class="entry"><div class="meta">21:40<span class="more"></span></div><p class="text">Abends noch mit <span class="m">@Anna</span> telefoniert.</p></div>
+</div>
+<div class="checks">
+  <label><input type="checkbox" data-check="Player hell ok">Hell sieht ertragbar aus</label>
+  <label><input type="checkbox" data-check="Player dunkel ok">Dunkel sieht ertragbar aus</label>
+  <label><input type="checkbox" data-check="⋮ unter ⋮ stört nicht">⋮ unter ⋮ stört nicht</label>
+  <label><input type="checkbox" data-check="Variante ohne Menü hat kein ⋮">Variante ohne Menü hat kein ⋮</label>
+  <label><input type="checkbox" data-check="Springen am Balken geht">Springen am Balken geht</label>
+</div>
+
+<h2>3 · Sperrbildschirm</h2>
+<p>Die Recorder-Datei im Strom oben abspielen, Bildschirm ausschalten, eine halbe Minute warten, wieder einschalten.</p>
+<div class="checks">
+  <label><input type="checkbox" data-check="läuft bei Bildschirm aus weiter">Läuft bei ausgeschaltetem Bildschirm weiter</label>
+  <label><input type="checkbox" data-check="Steuerung auf Sperrbildschirm">Steuerung auf dem Sperrbildschirm</label>
+  <label><input type="checkbox" data-check="Steuerung in Benachrichtigungen">Steuerung in den Benachrichtigungen</label>
+  <label><input type="checkbox" data-check="läuft nach App-Wechsel weiter">Läuft nach Wechsel in eine andere App weiter</label>
+</div>
+
+<h2>4 · Nach dem Neuladen</h2>
+<p>Die zuletzt gewählte Aufnahme liegt in IndexedDB, wie später in Minamo. Neu laden und prüfen, ob sie von dort spielt.</p>
+<div id="stored" class="muted">Noch nichts gespeichert.</div>
+<p style="margin-top:10px"><button type="button" id="reload">Neu laden</button><button type="button" id="clear">Gespeichertes löschen</button></p>
+<div class="checks">
+  <label><input type="checkbox" data-check="spielt nach Neuladen aus IndexedDB">Spielt nach dem Neuladen</label>
+</div>
+
+<h2>5 · Notizen und Ergebnis</h2>
+<textarea id="notes" placeholder="Was ist aufgefallen? Etwa: was Android bei A genau gezeigt hat, wie der Player wirkt …"></textarea>
+<p style="margin-top:10px"><button type="button" id="copy">Ergebnis kopieren</button></p>
+<textarea id="report" readonly aria-label="Ergebnis"></textarea>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+'use strict';
+const picks = [];          // gewählte Dateien mit Befund, für den Bericht
+let streamUrl = null;      // Adresse, die die Player im Strom gerade spielen
+
+// ── Darstellung ──────────────────────────────────────────────────────────
+for (const button of document.querySelectorAll('[data-theme-choice]')) {
+  button.addEventListener('click', () => {
+    const choice = button.dataset.themeChoice;
+    if (choice === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.dataset.theme = choice;
+    for (const b of document.querySelectorAll('[data-theme-choice]')) b.setAttribute('aria-pressed', String(b === button));
+    updateReport();
+  });
+}
+
+// ── Hilfen ───────────────────────────────────────────────────────────────
+function mimeOf(file) {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop().toLowerCase();
+  return { m4a: 'audio/mp4', mp3: 'audio/mpeg' }[ext] || '';
+}
+function extensionOf(mime) {
+  if (/mp4|m4a|aac/.test(mime)) return 'm4a';
+  if (/mpeg|mp3/.test(mime)) return 'mp3';
+  return '?';
+}
+function megabytes(bytes) { return (bytes / 1048576).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' MB'; }
+function clock(seconds) {
+  if (!isFinite(seconds)) return String(seconds);
+  const s = Math.floor(seconds);   // abgerundet wie der Player
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(r).padStart(2, '0');
+}
+// Dauer über ein Audio-Element lesen – zugleich die Probe, ob der Browser die Datei abspielen kann.
+function readDuration(url) {
+  return new Promise(resolve => {
+    const audio = new Audio();
+    const started = performance.now();
+    const done = result => { clearTimeout(timer); audio.removeAttribute('src'); audio.load(); resolve({ ...result, ms: Math.round(performance.now() - started) }); };
+    const timer = setTimeout(() => done({ error: 'Zeitüberschreitung (10 s)' }), 10000);
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => done({ duration: audio.duration });
+    audio.onerror = () => done({ error: 'Fehler ' + (audio.error ? audio.error.code + ' ' + (audio.error.message || '') : '') });
+    audio.src = url;
+  });
+}
+function row(label, value, bad) {
+  const div = document.createElement('div');
+  const a = document.createElement('span'); a.textContent = label;
+  const b = document.createElement('span'); b.textContent = value; if (bad) b.className = 'bad';
+  div.append(a, b);
+  return div;
+}
+function toast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text; el.style.display = 'block';
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (el.style.display = 'none'), 2000);
+}
+function playInStream(url) {
+  if (streamUrl && streamUrl !== url && streamUrl.startsWith('blob:')) URL.revokeObjectURL(streamUrl);
+  streamUrl = url;
+  for (const player of document.querySelectorAll('[data-player]')) player.src = url;
+}
+
+// ── 1 · Auswahl ──────────────────────────────────────────────────────────
+for (const variant of document.querySelectorAll('[data-variant]')) {
+  const input = variant.querySelector('input[type=file]');
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const mime = mimeOf(file);
+    const pick = {
+      variant: variant.dataset.variant, name: file.name, rawType: file.type || '(leer)', mime: mime || '(unbekannt)',
+      extension: extensionOf(mime), size: file.size, lastModified: new Date(file.lastModified).toLocaleString('de-DE'),
+    };
+    const box = document.createElement('div');
+    box.className = 'facts';
+    box.append(row('Variante', pick.variant), row('Name', pick.name), row('file.type', pick.rawType, !file.type),
+      row('MIME nach Regel', pick.mime), row('Endung im Export', pick.extension), row('Größe', megabytes(file.size)),
+      row('lastModified', pick.lastModified));
+    document.getElementById('files').prepend(box);
+    picks.push(pick);
+
+    if (file.type.startsWith('image/')) { pick.kind = 'Bild'; updateReport(); return; }
+    pick.kind = 'Ton';
+    const url = URL.createObjectURL(file);
+    const result = await readDuration(url);
+    if (result.error) {
+      pick.duration = result.error;
+      box.append(row('Dauer', result.error, true));
+      URL.revokeObjectURL(url);
+    } else {
+      pick.duration = clock(result.duration) + ' (' + Math.round(result.duration) + ' s, gelesen in ' + result.ms + ' ms)';
+      box.append(row('Dauer', pick.duration));
+      if (isFinite(result.duration) && result.duration > 0) {
+        pick.perMinute = megabytes(file.size / (result.duration / 60)) + ' pro Minute';
+        box.append(row('Größe pro Minute', pick.perMinute));
+      }
+      playInStream(url);
+      try { await store(file, mime); pick.stored = 'ja'; box.append(row('In IndexedDB gespeichert', 'ja')); }
+      catch (e) { pick.stored = 'nein: ' + e; box.append(row('In IndexedDB gespeichert', 'nein: ' + e, true)); }
+      showStored();
+    }
+    updateReport();
+    toast('Datei gelesen');
+  });
+}
+
+// ── 2 · Testton, bis eine Datei gewählt ist (8 s, leise, WAV) ────────────
+function testTone() {
+  const rate = 8000, seconds = 8, n = rate * seconds;
+  const buffer = new ArrayBuffer(44 + n * 2), v = new DataView(buffer);
+  const text = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  text(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); text(8, 'WAVE'); text(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); text(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const t = i / rate, beat = (t % 1) < 0.15 ? 1 : 0;   // jede Sekunde ein kurzer Ton
+    v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * 523 * t) * 3000 * beat, true);
+  }
+  return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+}
+playInStream(testTone());
+
+// ── 4 · IndexedDB (eigene Datenbank, nicht die von Minamo) ───────────────
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('minamo-probe', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('assets');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+async function withStore(mode, work) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('assets', mode);
+    const result = work(tx.objectStore('assets'));
+    tx.oncomplete = () => { db.close(); resolve(result.result); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+  });
+}
+function store(file, mime) {
+  return withStore('readwrite', s => s.put({ blob: file, name: file.name, mime, savedAt: new Date().toLocaleString('de-DE') }, 'last'));
+}
+async function showStored() {
+  const target = document.getElementById('stored');
+  let record;
+  try { record = await withStore('readonly', s => s.get('last')); }
+  catch (e) { target.textContent = 'IndexedDB geht nicht: ' + e; return; }
+  target.textContent = '';
+  if (!record) { target.textContent = 'Noch nichts gespeichert.'; return; }
+  const box = document.createElement('div');
+  box.className = 'facts';
+  box.append(row('Gespeichert', record.name), row('Typ im Blob', record.blob.type || '(leer)'), row('Größe', megabytes(record.blob.size)), row('Zeitpunkt', record.savedAt));
+  const audio = document.createElement('audio');
+  audio.controls = true; audio.preload = 'metadata'; audio.style.cssText = 'display:block;width:100%;margin-top:8px';
+  audio.src = URL.createObjectURL(record.blob);
+  target.append(box, audio);
+}
+document.getElementById('reload').addEventListener('click', () => location.reload());
+document.getElementById('clear').addEventListener('click', async () => {
+  await withStore('readwrite', s => s.delete('last'));
+  showStored(); toast('Gelöscht');
+});
+showStored();
+
+// ── 5 · Bericht ──────────────────────────────────────────────────────────
+function updateReport() {
+  const lines = ['Minamo · Probelauf Aufnahmen', new Date().toLocaleString('de-DE'), navigator.userAgent,
+    'Darstellung: ' + (document.documentElement.dataset.theme || 'System') + ', Breite ' + window.innerWidth + ' px', ''];
+  for (const variant of document.querySelectorAll('[data-variant]')) {
+    const checked = [...variant.querySelectorAll('[data-check]')].map(c => (c.checked ? '[x] ' : '[ ] ') + c.dataset.check);
+    lines.push('Variante ' + variant.dataset.variant + ': ' + checked.join(', '));
+  }
+  lines.push('');
+  for (const p of picks) {
+    lines.push(`Datei (${p.variant}, ${p.kind || '?'}): ${p.name} | file.type ${p.rawType} | MIME ${p.mime} | Export .${p.extension} | ${megabytes(p.size)}` +
+      ` | lastModified ${p.lastModified}` + (p.duration ? ' | Dauer ' + p.duration : '') + (p.perMinute ? ' | ' + p.perMinute : '') + (p.stored ? ' | IndexedDB ' + p.stored : ''));
+  }
+  if (!picks.length) lines.push('(keine Datei gewählt)');
+  lines.push('');
+  const rest = [...document.querySelectorAll('[data-check]')].filter(c => !c.closest('[data-variant]'));
+  for (const c of rest) lines.push((c.checked ? '[x] ' : '[ ] ') + c.dataset.check);
+  const notes = document.getElementById('notes').value.trim();
+  if (notes) lines.push('', 'Notizen:', notes);
+  document.getElementById('report').value = lines.join('\n');
+}
+document.addEventListener('change', updateReport);
+document.getElementById('notes').addEventListener('input', updateReport);
+document.getElementById('copy').addEventListener('click', async () => {
+  updateReport();
+  const report = document.getElementById('report');
+  try { await navigator.clipboard.writeText(report.value); toast('Kopiert'); }
+  catch { report.select(); document.execCommand('copy'); toast('Kopiert (markiert)'); }
+});
+updateReport();
+</script>
+</body>
+</html>
