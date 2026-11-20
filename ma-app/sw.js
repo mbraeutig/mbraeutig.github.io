@@ -1,111 +1,99 @@
 // ========================================
 // 間 Ma - Service Worker
 // Ermöglicht Offline-Nutzung der PWA
+//
+// Alle Pfade sind relativ zum Ort dieser Datei, damit die App
+// auch unter einem Unterpfad läuft (z.B. https://<user>.github.io/Ma-App/).
+//
+// RELEASE-REGEL: Bei jeder Änderung an App-Dateien CACHE_VERSION erhöhen,
+// damit Icons/Manifest neu geladen und alte Caches entfernt werden.
 // ========================================
 
-const CACHE_NAME = 'ma-app-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon.svg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
-];
+const CACHE_VERSION = 4;
+const CACHE_NAME = `ma-app-v${CACHE_VERSION}`;
+const INDEX_URL = './index.html';
 
-// Google Fonts für Offline-Nutzung
-const FONT_CACHE_NAME = 'ma-fonts-v1';
-const GOOGLE_FONTS_URLS = [
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Sans+JP:wght@300;400&display=swap'
+// Alles, was die App zum Laufen braucht – inkl. Font, damit sie offline
+// ab dem ersten Start vollständig aussieht. Keine externen Ressourcen.
+const ASSETS_TO_CACHE = [
+  './',
+  INDEX_URL,
+  './manifest.json',
+  './fonts/inter-latin-wght-normal.woff2',
+  './icons/icon.svg',
+  './icons/icon-32.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png'
 ];
 
 // ========================================
 // INSTALL EVENT
-// Cache statische Assets
+// App Shell cachen. Schlägt das fehl, schlägt die Installation fehl –
+// sonst gäbe es einen "installierten" Worker ohne Offline-Fähigkeit.
 // ========================================
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing Service Worker...');
-
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Caching app shell...');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .then(() => {
-        console.log('[SW] App shell cached successfully');
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('[SW] Failed to cache app shell:', error);
-      })
+      // cache: 'reload' umgeht den HTTP-Cache, damit wirklich der aktuelle Stand im Cache landet
+      .then((cache) => cache.addAll(
+        ASSETS_TO_CACHE.map((url) => new Request(url, { cache: 'reload' }))
+      ))
+      .then(() => self.skipWaiting())
   );
 });
 
 // ========================================
 // ACTIVATE EVENT
-// Alte Caches löschen — nur die eigenen ('ma-…'): Der Origin
-// mbraeutig.github.io ist mit anderen Apps geteilt, deren Caches bleiben unangetastet
+// Alte Caches löschen (inkl. des früheren Google-Fonts-Caches 'ma-fonts-v1') —
+// nur die eigenen ('ma-…'): Der Origin mbraeutig.github.io ist mit anderen
+// Apps geteilt, deren Caches bleiben unangetastet
 // ========================================
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating Service Worker...');
-
   event.waitUntil(
     caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name.startsWith('ma-') && name !== CACHE_NAME && name !== FONT_CACHE_NAME)
-            .map((name) => {
-              console.log('[SW] Deleting old cache:', name);
-              return caches.delete(name);
-            })
-        );
-      })
-      .then(() => {
-        console.log('[SW] Service Worker activated');
-        return self.clients.claim();
-      })
+      .then((cacheNames) => Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('ma-') && name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
 // ========================================
 // FETCH EVENT
-// Cache-First Strategie für Assets
-// Network-First für dynamische Inhalte
+// - Navigation (HTML): Network-First → Updates kommen sofort an, offline aus dem Cache
+// - Lokale Assets:     Cache-First (Font, Icons, Manifest)
 // ========================================
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  // Nur GET-Requests sind cachebar
+  if (request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(request.url);
 
-  // Google Fonts: Cache-First mit Network-Fallback
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+  // Seitenaufrufe: Network-First
+  if (request.mode === 'navigate') {
     event.respondWith(
-      caches.open(FONT_CACHE_NAME)
-        .then((cache) => {
-          return cache.match(request)
-            .then((cachedResponse) => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-
-              return fetch(request)
-                .then((networkResponse) => {
-                  cache.put(request, networkResponse.clone());
-                  return networkResponse;
-                })
-                .catch(() => {
-                  // Fonts nicht verfügbar - App funktioniert trotzdem mit System-Fonts
-                  return new Response('', { status: 200 });
-                });
-            });
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(INDEX_URL, responseClone));
+          }
+          return networkResponse;
         })
+        .catch(() => caches.match(INDEX_URL))
     );
     return;
   }
 
   // Lokale Assets: Cache-First
-  if (url.origin === location.origin) {
+  if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(request)
         .then((cachedResponse) => {
@@ -115,33 +103,18 @@ self.addEventListener('fetch', (event) => {
 
           return fetch(request)
             .then((networkResponse) => {
-              // Nur erfolgreiche Responses cachen
-              if (networkResponse && networkResponse.status === 200) {
+              if (networkResponse.ok) {
                 const responseClone = networkResponse.clone();
-                caches.open(CACHE_NAME)
-                  .then((cache) => {
-                    cache.put(request, responseClone);
-                  });
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
               }
               return networkResponse;
             })
-            .catch(() => {
-              // Offline-Fallback für HTML
-              if (request.headers.get('accept').includes('text/html')) {
-                return caches.match('/index.html');
-              }
-              return new Response('Offline', { status: 503 });
-            });
+            .catch(() => new Response('Offline', { status: 503 }));
         })
     );
-    return;
   }
 
-  // Alle anderen Requests: Network-First
-  event.respondWith(
-    fetch(request)
-      .catch(() => caches.match(request))
-  );
+  // Alle anderen Requests: Browser-Standard (kein respondWith)
 });
 
 // ========================================
@@ -153,5 +126,3 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
-
-console.log('[SW] Service Worker loaded');

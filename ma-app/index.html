@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>間 Ma - Space Between</title>
 
   <!-- PWA Meta Tags -->
@@ -22,27 +22,44 @@
   <!-- Icons -->
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Sans+JP:wght@300;400&display=swap" rel="stylesheet">
-  
+  <!-- Font: selbst gehostet – keine Requests an Dritte (DSGVO), offline ab dem ersten Start -->
+  <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+
   <style>
+    /* ========================================
+       FONTS
+       Inter (Variable Font, Latin-Subset inkl. Umlaute), Lizenz: fonts/LICENSE-Inter.txt
+       ======================================== */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('fonts/inter-latin-wght-normal.woff2') format('woff2');
+    }
+
     /* ========================================
        CSS VARIABLES - Design System
        Leicht anpassbar für Theming
        ======================================== */
     :root {
       --color-bg: #FAFAF9;
-      --color-accent: #D4C5B0;
+      --color-accent: #D4C5B0;        /* Dekorative Flächen (Atemkreis) */
+      --color-accent-fill: #D4C5B0;   /* Flächen hinter Text (Hover, Notification) – Text ≥ 4.5:1 */
+      --color-accent-strong: #968368; /* Rahmen & Icons – ≥ 3:1 auf --color-bg */
       --color-text: #2D2D2D;
-      --color-subtle: #E8E4DF;
-      --color-light: #999;
-      
-      --font-primary: 'Inter', sans-serif;
-      --font-japanese: 'Noto Sans JP', sans-serif;
+      --color-subtle: #E8E4DF;        /* Hover-Flächen */
+      --color-border: #8F8A84;        /* Rahmen von Eingabefeldern – ≥ 3:1 auf --color-bg */
+      --color-light: #6E6A65;         /* Gedämpfter Text – ≥ 4.5:1 auf --color-bg */
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+
+      --font-primary: 'Inter', system-ui, sans-serif;
       
       --transition-smooth: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       --transition-fast: all 0.3s ease;
@@ -67,8 +84,9 @@
       font-family: var(--font-primary);
       background: var(--color-bg);
       color: var(--color-text);
-      overflow: hidden;
-      height: 100vh;
+      /* min-height statt height + kein overflow:hidden: Bei geöffneter Tastatur bleibt alles erreichbar */
+      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -80,44 +98,67 @@
     .app-container {
       width: 100%;
       max-width: 400px;
-      height: 100vh;
+      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: var(--spacing-md);
+      padding: calc(var(--spacing-md) + var(--safe-top)) calc(var(--spacing-md) + var(--safe-right))
+               calc(var(--spacing-md) + var(--safe-bottom)) calc(var(--spacing-md) + var(--safe-left));
       position: relative;
     }
 
     /* ========================================
        COMPONENTS - Reusable UI Elements
        ======================================== */
-    
-    /* Export Button */
-    .export-button {
+
+    /* Fokus-Indikator für Tastatur-Nutzung */
+    button:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--color-accent-strong);
+      outline-offset: 3px;
+    }
+
+    /* Programmatisch fokussierte Screens brauchen keinen Rahmen */
+    .screen:focus {
+      outline: none;
+    }
+
+    /* Eck-Buttons: Export (⤓) im Idle, Beenden (×) während einer Pause */
+    .corner-button {
       position: absolute;
-      top: var(--spacing-md);
-      right: var(--spacing-md);
+      top: calc(var(--spacing-md) + var(--safe-top));
+      right: calc(var(--spacing-md) + var(--safe-right));
+      min-width: 44px;
+      min-height: 44px;
       background: transparent;
       border: none;
-      color: var(--color-accent);
+      color: var(--color-accent-strong);
+      font-family: var(--font-primary);
       font-size: 1.5rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      opacity: 0.4;
       transition: var(--transition-fast);
       z-index: 100;
     }
 
-    .export-button:hover {
-      opacity: 1;
-      transform: translateY(-2px);
+    @media (hover: hover) {
+      .corner-button:hover {
+        color: var(--color-text);
+        transform: translateY(-2px);
+      }
     }
 
-    /* Ma Character */
+    /* Ma Character – SVG-Pfad aus Noto Sans JP Light (icons/ma-glyph.svg),
+       damit kein japanischer Webfont geladen werden muss */
     .ma-character {
-      font-family: var(--font-japanese);
-      font-size: 120px;
-      font-weight: 300;
+      height: 104px;           /* entspricht 間 bei 120px Schriftgröße */
+      aspect-ratio: 812 / 865;
+      fill: currentColor;
       opacity: 0.7;
       margin-bottom: var(--spacing-xl);
       animation: breathe 10s ease-in-out infinite;
@@ -137,7 +178,7 @@
     /* Primary Button */
     .btn-primary {
       background: transparent;
-      border: 1px solid var(--color-accent);
+      border: 1px solid var(--color-accent-strong);
       color: var(--color-text);
       padding: 1rem 3rem;
       font-size: 1rem;
@@ -149,16 +190,18 @@
       transition: var(--transition-smooth);
     }
 
-    .btn-primary:hover {
-      background: var(--color-accent);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(212, 197, 176, 0.3);
+    @media (hover: hover) {
+      .btn-primary:hover {
+        background: var(--color-accent-fill);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(212, 197, 176, 0.3);
+      }
     }
 
     /* Secondary Button */
     .btn-secondary {
       background: transparent;
-      border: 1px solid var(--color-subtle);
+      border: 1px solid var(--color-border);
       color: var(--color-text);
       padding: 0.75rem 2rem;
       font-size: 0.9rem;
@@ -170,8 +213,10 @@
       transition: var(--transition-fast);
     }
 
-    .btn-secondary:hover {
-      background: var(--color-subtle);
+    @media (hover: hover) {
+      .btn-secondary:hover {
+        background: var(--color-subtle);
+      }
     }
 
     /* ========================================
@@ -204,17 +249,17 @@
       border-radius: 50%;
       background: var(--color-accent);
       margin-bottom: var(--spacing-lg);
-      transition: var(--transition-smooth);
+      /* Grundzustand = ausgeatmet. Die Dauer kommt aus JS (Config.BREATH_PHASE_MS),
+         damit Kreis und Text exakt im selben Rhythmus laufen. */
+      opacity: 0.3;
+      transform: scale(0.8);
+      transition: transform var(--breath-duration, 5s) ease-in-out,
+                  opacity var(--breath-duration, 5s) ease-in-out;
     }
 
     .breathe-circle.inhale {
       opacity: 1;
       transform: scale(1.2);
-    }
-
-    .breathe-circle.exhale {
-      opacity: 0.3;
-      transform: scale(0.8);
     }
 
     .breathe-text {
@@ -264,7 +309,7 @@
       width: 100%;
       min-height: 150px;
       padding: 1.5rem;
-      border: 1px solid var(--color-subtle);
+      border: 1px solid var(--color-border);
       border-radius: 2px;
       font-family: var(--font-primary);
       font-size: 1rem;
@@ -282,8 +327,8 @@
     }
 
     .reflect-input:focus {
-      outline: none;
-      border-color: var(--color-accent);
+      outline: 2px solid var(--color-accent-strong);
+      outline-offset: 2px;
     }
 
     .button-group {
@@ -294,6 +339,9 @@
 
     .button-group button {
       flex: 1;
+      /* Weniger seitliches Padding, sonst passen beide Buttons auf schmalen Screens nicht nebeneinander */
+      padding-left: 1rem;
+      padding-right: 1rem;
     }
 
     .char-count {
@@ -307,10 +355,10 @@
        ======================================== */
     .notification {
       position: fixed;
-      bottom: var(--spacing-md);
+      bottom: calc(var(--spacing-md) + var(--safe-bottom));
       left: 50%;
       transform: translateX(-50%);
-      background: var(--color-accent);
+      background: var(--color-accent-fill);
       color: var(--color-text);
       padding: 1rem 2rem;
       border-radius: 2px;
@@ -375,13 +423,18 @@
       :root {
         --color-bg: #1a1a1a;
         --color-accent: #8B7355;
+        --color-accent-fill: #66533C;
+        --color-accent-strong: #8B7355;
         --color-text: #E8E4DF;
         --color-subtle: #333333;
+        --color-border: #707070;
         --color-light: #888888;
       }
 
-      .btn-primary:hover {
-        box-shadow: 0 10px 20px rgba(139, 115, 85, 0.3);
+      @media (hover: hover) {
+        .btn-primary:hover {
+          box-shadow: 0 10px 20px rgba(139, 115, 85, 0.3);
+        }
       }
     }
 
@@ -390,11 +443,12 @@
        ======================================== */
     @media (max-width: 480px) {
       .app-container {
-        padding: var(--spacing-sm);
+        padding: calc(var(--spacing-sm) + var(--safe-top)) calc(var(--spacing-sm) + var(--safe-right))
+                 calc(var(--spacing-sm) + var(--safe-bottom)) calc(var(--spacing-sm) + var(--safe-left));
       }
       
       .ma-character {
-        font-size: 100px;
+        height: 87px;
         margin-bottom: var(--spacing-lg);
       }
       
@@ -411,15 +465,16 @@
         font-size: 0.9rem;
       }
       
-      .export-button {
-        top: var(--spacing-sm);
-        right: var(--spacing-sm);
+      .corner-button {
+        top: calc(var(--spacing-xs) + var(--safe-top));
+        right: calc(var(--spacing-xs) + var(--safe-right));
       }
     }
-    
+
     @media (max-width: 360px) {
       .app-container {
-        padding: 0.75rem;
+        padding: calc(0.75rem + var(--safe-top)) calc(0.75rem + var(--safe-right))
+                 calc(0.75rem + var(--safe-bottom)) calc(0.75rem + var(--safe-left));
       }
       
       .reflect-container {
@@ -427,7 +482,7 @@
       }
       
       .ma-character {
-        font-size: 80px;
+        height: 69px;
       }
     }
   </style>
@@ -435,19 +490,28 @@
 <body>
   
   <!-- App Container -->
-  <div class="app-container">
-    
-    <!-- Export Button (immer sichtbar außer in Modi) -->
-    <button class="export-button" id="exportBtn"
+  <main class="app-container">
+
+    <!-- Export Button (nur im Idle sichtbar) -->
+    <button class="corner-button" id="exportBtn"
             aria-label="Reflexionen exportieren"
-            title="Reflexionen exportieren">⤓</button>
+            title="Reflexionen exportieren">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+    </button>
+
+    <!-- Beenden Button (nur während Breathe/Sense sichtbar; Reflect hat "Überspringen") -->
+    <button class="corner-button hidden" id="cancelBtn"
+            aria-label="Pause beenden"
+            title="Pause beenden">×</button>
 
     <!-- ========================================
          IDLE SCREEN
          Default state, entry point
          ======================================== -->
-    <div class="screen active" id="idleScreen" role="main" aria-label="Startbildschirm">
-      <div class="ma-character" aria-hidden="true">間</div>
+    <div class="screen active" id="idleScreen" role="region" aria-label="Startbildschirm" tabindex="-1">
+      <!-- 間 als Pfad – Quelle: icons/ma-glyph.svg (bei Änderung beide anpassen) -->
+      <svg class="ma-character" viewBox="97 371 812 865" aria-hidden="true" focusable="false"><path d="M339 981L339 940L659 940L659 981L339 981M338 829L338 787L681 787L681 1141L338 1141L338 1100L635 1100L635 829L338 829M315 1192L315 787L360 787L360 1192L315 1192M121 555L121 515L414 515L414 555L121 555M580 555L580 515L881 515L881 555L580 555M860 1160L860 371L909 371L909 1160Q909 1189 900.5 1203.5Q892 1218 871 1225Q850 1232 811 1233Q772 1234 710 1234Q709 1227 706 1218Q703 1209 699.5 1200Q696 1191 692 1183Q725 1185 754.5 1185Q784 1185 806 1184.5Q828 1184 837 1184Q850 1183 855 1178Q860 1173 860 1160M124 412L124 371L447 371L447 703L124 703L124 663L401 663L401 412L124 412M550 371L882 371L882 412L597 412L597 663L882 663L882 704L550 704L550 371M97 1236L97 371L145 371L145 1236"/></svg>
       <button class="btn-primary" id="pauseBtn" aria-describedby="pause-description">Pause</button>
       <span id="pause-description" class="sr-only">Startet eine achtsame Pause basierend auf der Tageszeit</span>
     </div>
@@ -456,7 +520,7 @@
          BREATHE SCREEN
          Morning mode - breathing exercise
          ======================================== -->
-    <div class="screen" id="breatheScreen" role="region" aria-label="Atemübung">
+    <div class="screen" id="breatheScreen" role="region" aria-label="Atemübung" tabindex="-1">
       <div class="breathe-circle" id="breatheCircle" aria-hidden="true"></div>
       <div class="breathe-text" id="breatheText" aria-live="polite" role="status">einatmen...</div>
     </div>
@@ -465,15 +529,15 @@
          SENSE SCREEN
          Midday mode - 5 senses awareness
          ======================================== -->
-    <div class="screen" id="senseScreen" role="region" aria-label="Sinneswahrnehmung">
-      <div class="sense-prompt" id="sensePrompt" aria-live="assertive" role="status"></div>
+    <div class="screen" id="senseScreen" role="region" aria-label="Sinneswahrnehmung" tabindex="-1">
+      <div class="sense-prompt" id="sensePrompt" aria-live="polite" role="status"></div>
     </div>
 
     <!-- ========================================
          REFLECT SCREEN
          Evening mode - reflection with optional journaling
          ======================================== -->
-    <div class="screen" id="reflectScreen" role="region" aria-label="Reflexion">
+    <div class="screen" id="reflectScreen" role="region" aria-label="Reflexion" tabindex="-1">
       <div class="reflect-container">
         <label for="reflectInput" class="reflect-question">Deine Gedanken</label>
         <textarea
@@ -487,16 +551,17 @@
           <button class="btn-secondary" id="skipBtn" aria-label="Reflexion überspringen">Überspringen</button>
           <button class="btn-primary" id="finishBtn" aria-label="Reflexion speichern und beenden">Fertig</button>
         </div>
-        <div class="char-count" id="char-count-info" aria-live="polite">
+        <!-- Kein aria-live: würde bei jedem Tastendruck vorgelesen; per describedby beim Fokus -->
+        <div class="char-count" id="char-count-info">
           <span id="charCount">0</span>/280 Zeichen
         </div>
       </div>
     </div>
 
-  </div>
+  </main>
 
   <!-- Notification -->
-  <div class="notification" id="notification"></div>
+  <div class="notification" id="notification" role="status" aria-live="polite"></div>
 
   <!-- ========================================
        JAVASCRIPT - Application Logic
@@ -504,8 +569,19 @@
        ======================================== -->
   <script>
     // ========================================
+    // CONFIG
+    // Zeiten der Modi an einer Stelle
+    // ========================================
+    const Config = {
+      BREATH_PHASE_MS: 5000,   // 5s ein / 5s aus = 6 Atemzüge pro Minute (Resonanzatmung)
+      BREATH_CYCLES: 3,        // 3 Zyklen ≈ 30s
+      SENSE_PROMPT_MS: 10000,  // 10s pro Sinnes-Prompt
+      SENSE_OUTRO_MS: 3000     // Ausklang nach dem letzten Prompt
+    };
+
+    // ========================================
     // STATE MANAGEMENT
-    // Zentraler App-State, einfach in Redux/NgRx übertragbar
+    // Zentraler App-State
     // ========================================
     const AppState = {
       currentMode: 'idle',
@@ -561,6 +637,7 @@
             text: text
           });
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(reflections));
+          this.requestPersistence();
           return true;
         } catch (error) {
           console.error('Error saving reflection:', error);
@@ -573,6 +650,19 @@
         }
       },
       
+      // Bittet den Browser, die Daten nicht automatisch zu löschen (z.B. Safari nach
+      // 7 Tagen ohne Nutzung). Das Archiv ist unsichtbar – ein Verlust fiele sonst nie auf.
+      // Erst nach dem ersten Speichern, weil Firefox dafür einen Dialog zeigt.
+      async requestPersistence() {
+        try {
+          if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
+            await navigator.storage.persist();
+          }
+        } catch (error) {
+          // Nicht unterstützt – Daten bleiben trotzdem gespeichert, nur ohne Garantie
+        }
+      },
+
       exportAsMarkdown() {
         const reflections = this.getReflections();
         
@@ -614,6 +704,7 @@
       elements: {
         pauseBtn: document.getElementById('pauseBtn'),
         exportBtn: document.getElementById('exportBtn'),
+        cancelBtn: document.getElementById('cancelBtn'),
         breatheCircle: document.getElementById('breatheCircle'),
         breatheText: document.getElementById('breatheText'),
         sensePrompt: document.getElementById('sensePrompt'),
@@ -633,35 +724,186 @@
         // Show target screen
         this.screens[screenName].classList.add('active');
         
-        // Show/hide export button
-        if (screenName === 'idle') {
-          this.elements.exportBtn.classList.remove('hidden');
-        } else {
-          this.elements.exportBtn.classList.add('hidden');
-        }
+        // Eck-Buttons: Export nur im Idle, Beenden nur während geführter Pausen
+        const isGuided = screenName === 'breathe' || screenName === 'sense';
+        this.elements.exportBtn.classList.toggle('hidden', screenName !== 'idle');
+        this.elements.cancelBtn.classList.toggle('hidden', !isGuided);
+
+        this.moveFocus(screenName);
       },
-      
+
+      // Fokus folgt dem Screen – sonst landet er auf einem ausgeblendeten Element
+      moveFocus(screenName) {
+        let target = this.screens[screenName];
+
+        if (screenName === 'idle') {
+          target = this.elements.pauseBtn;
+        } else if (screenName === 'reflect' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+          // Nur am Desktop direkt ins Textfeld – auf dem Handy würde sonst sofort
+          // die Tastatur aufgehen, obwohl Schreiben optional ist
+          target = this.elements.reflectInput;
+        }
+
+        target.focus({ preventScroll: true });
+      },
+
       updateCharCount(count) {
         this.elements.charCount.textContent = count;
       },
-      
+
+      notificationTimer: null,
+
       showNotification(message, duration = 3000) {
+        clearTimeout(this.notificationTimer);
         this.elements.notification.textContent = message;
         this.elements.notification.classList.add('show');
-        
-        setTimeout(() => {
+
+        this.notificationTimer = setTimeout(() => {
           this.elements.notification.classList.remove('show');
         }, duration);
       },
       
+      // Lokales Datum (YYYY-MM-DD) – toISOString() wäre UTC und nach Mitternacht
+      // (genau in der Reflect-Zeit) einen Tag zu früh
+      localDateStamp(date = new Date()) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      },
+
+      // Mobil: System-Teilen-Dialog (Dateien, Mail, Notizen …) – ein Blob-Download
+      // funktioniert in installierten Web-Apps auf iOS nicht zuverlässig.
+      // Desktop: klassischer Download.
+      // Rückgabe: 'shared' | 'downloaded' | 'cancelled'
+      async shareOrDownload(content, filename) {
+        if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare) {
+          // text/plain: text/markdown steht nicht auf der Teilen-Whitelist aller Browser
+          const file = new File([content], filename, { type: 'text/plain' });
+          if (navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({ files: [file], title: '間 Ma – Reflexionen' });
+              return 'shared';
+            } catch (error) {
+              if (error.name === 'AbortError') {
+                return 'cancelled';
+              }
+              // Andere Fehler → Download als Fallback
+            }
+          }
+        }
+        this.downloadFile(content, filename);
+        return 'downloaded';
+      },
+
       downloadFile(content, filename) {
         const blob = new Blob([content], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        a.remove();
+        // Verzögert freigeben – sofortiges revoke bricht den Download in manchen Browsern ab
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    };
+
+    // ========================================
+    // FEEDBACK SERVICE
+    // Hilfen für Pausen mit geschlossenen Augen:
+    // Bildschirm bleibt an, Vibration bei Atemwechsel, leiser Klang am Ende.
+    // Alles optional – fehlt eine API, passiert einfach nichts.
+    // ========================================
+    const FeedbackService = {
+      audioCtx: null,
+      wakeLock: null,
+      wakeLockWanted: false,
+
+      // Muss im Klick-Handler laufen: Browser erlauben Audio nur nach einer Nutzer-Geste
+      prepareAudio() {
+        try {
+          // iOS: 'ambient' respektiert den Stumm-Schalter
+          if (navigator.audioSession) {
+            navigator.audioSession.type = 'ambient';
+          }
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          if (!this.audioCtx) {
+            this.audioCtx = new AudioCtx();
+          }
+          if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+          }
+        } catch (error) {
+          this.audioCtx = null;
+        }
+      },
+
+      // Leiser, synthetischer Klangschalen-Ton (keine Audio-Datei nötig)
+      chime() {
+        const ctx = this.audioCtx;
+        if (!ctx || ctx.state !== 'running') return;
+
+        const now = ctx.currentTime;
+        const duration = 4;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        master.connect(ctx.destination);
+
+        // Unharmonische Teiltöne wie bei einer Klangschale
+        const base = 330;
+        [[1, 1], [2.76, 0.35], [5.4, 0.12]].forEach(([ratio, level]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = base * ratio;
+          gain.gain.value = level;
+          osc.connect(gain).connect(master);
+          osc.start(now);
+          osc.stop(now + duration);
+        });
+      },
+
+      vibrate(pattern) {
+        if (navigator.vibrate) {
+          navigator.vibrate(pattern);
+        }
+      },
+
+      async acquireWakeLock() {
+        this.wakeLockWanted = true;
+        if (!('wakeLock' in navigator) || this.wakeLock) return;
+        try {
+          const lock = await navigator.wakeLock.request('screen');
+          // Pause wurde inzwischen beendet → sofort wieder freigeben
+          if (!this.wakeLockWanted) {
+            lock.release();
+            return;
+          }
+          this.wakeLock = lock;
+          lock.addEventListener('release', () => {
+            if (this.wakeLock === lock) this.wakeLock = null;
+          });
+        } catch (error) {
+          // z.B. Energiesparmodus – ohne Wake Lock weitermachen
+        }
+      },
+
+      releaseWakeLock() {
+        this.wakeLockWanted = false;
+        if (this.wakeLock) {
+          this.wakeLock.release().catch(() => {});
+          this.wakeLock = null;
+        }
+      },
+
+      // Der Browser gibt den Wake Lock beim Wechsel in den Hintergrund frei
+      handleVisibilityChange() {
+        if (document.visibilityState === 'visible' && this.wakeLockWanted) {
+          this.acquireWakeLock();
+        }
       }
     };
 
@@ -693,12 +935,17 @@
       startPause() {
         const mode = this.selectMode();
         AppState.setState({ currentMode: mode });
-        
+
+        // Läuft noch innerhalb der Klick-Geste → Audio darf freigeschaltet werden
+        FeedbackService.prepareAudio();
+
         switch(mode) {
           case 'breathe':
+            FeedbackService.acquireWakeLock();
             this.startBreathe();
             break;
           case 'sense':
+            FeedbackService.acquireWakeLock();
             this.startSense();
             break;
           case 'reflect':
@@ -706,41 +953,49 @@
             break;
         }
       },
-      
+
       // ========================================
       // BREATHE MODE LOGIC
       // ========================================
       startBreathe() {
+        const { breatheCircle } = UIService.elements;
+        breatheCircle.style.setProperty('--breath-duration', `${Config.BREATH_PHASE_MS}ms`);
+        breatheCircle.classList.remove('inhale');
+
         UIService.showScreen('breathe');
         AppState.setState({ breathCycleCount: 0 });
+
+        // Reflow erzwingen: Der Kreis war eben noch display:none. Ohne Reflow
+        // würde die erste Einatmen-Transition übersprungen und der Kreis springen.
+        void breatheCircle.offsetWidth;
+
         this.breatheCycle();
       },
-      
+
       breatheCycle() {
         const { breatheCircle, breatheText } = UIService.elements;
-        
-        // Inhale phase
+
+        // Einatmen: ein kurzer Puls
         breatheCircle.classList.add('inhale');
-        breatheCircle.classList.remove('exhale');
         breatheText.textContent = 'einatmen...';
-        
+        FeedbackService.vibrate(40);
+
         this.timers.push(setTimeout(() => {
-          // Exhale phase
-          breatheCircle.classList.add('exhale');
+          // Ausatmen: zwei kurze Pulse
           breatheCircle.classList.remove('inhale');
           breatheText.textContent = 'ausatmen...';
-          
+          FeedbackService.vibrate([30, 120, 30]);
+
           this.timers.push(setTimeout(() => {
             AppState.breathCycleCount++;
-            
-            // 3 cycles total
-            if (AppState.breathCycleCount < 3) {
+
+            if (AppState.breathCycleCount < Config.BREATH_CYCLES) {
               this.breatheCycle();
             } else {
-              this.endPause();
+              this.completePause();
             }
-          }, 4000)); // 4 seconds exhale
-        }, 4000)); // 4 seconds inhale
+          }, Config.BREATH_PHASE_MS));
+        }, Config.BREATH_PHASE_MS));
       },
       
       // ========================================
@@ -762,13 +1017,13 @@
           this.timers.push(setTimeout(() => {
             AppState.senseStepIndex++;
             this.showSensePrompt();
-          }, 10000)); // 10 seconds per prompt
+          }, Config.SENSE_PROMPT_MS));
         } else {
-          // Fade out
+          // Ausklang
           sensePrompt.textContent = '...';
           this.timers.push(setTimeout(() => {
-            this.endPause();
-          }, 3000));
+            this.completePause();
+          }, Config.SENSE_OUTRO_MS));
         }
       },
       
@@ -794,8 +1049,19 @@
       // ========================================
       // RETURN TO IDLE
       // ========================================
+
+      // Natürliches Ende einer geführten Pause: Klang + Puls signalisieren "fertig"
+      // (wichtig, wenn die Augen geschlossen sind)
+      completePause() {
+        FeedbackService.chime();
+        FeedbackService.vibrate(200);
+        this.endPause();
+      },
+
+      // Ende ohne Signal – auch beim Abbrechen per × oder Escape
       endPause() {
         this.clearTimers();
+        FeedbackService.releaseWakeLock();
         AppState.reset();
         UIService.showScreen('idle');
       }
@@ -812,15 +1078,21 @@
         });
         
         // Export button
-        UIService.elements.exportBtn.addEventListener('click', () => {
+        UIService.elements.exportBtn.addEventListener('click', async () => {
           const markdown = StorageService.exportAsMarkdown();
-          
-          if (markdown) {
-            const filename = `ma-reflections-${new Date().toISOString().split('T')[0]}.md`;
-            UIService.downloadFile(markdown, filename);
-            UIService.showNotification('Reflexionen exportiert ✓');
-          } else {
+
+          if (!markdown) {
             UIService.showNotification('Keine Einträge zum Exportieren');
+            return;
+          }
+
+          const filename = `ma-reflections-${UIService.localDateStamp()}.md`;
+          const result = await UIService.shareOrDownload(markdown, filename);
+
+          if (result === 'shared') {
+            UIService.showNotification('Reflexionen geteilt ✓');
+          } else if (result === 'downloaded') {
+            UIService.showNotification('Reflexionen exportiert ✓');
           }
         });
         
@@ -839,6 +1111,16 @@
           ModeController.finishReflect(true);
         });
         
+        // Beenden-Button (×) während Breathe/Sense
+        UIService.elements.cancelBtn.addEventListener('click', () => {
+          ModeController.endPause();
+        });
+
+        // Wake Lock nach Rückkehr aus dem Hintergrund erneuern
+        document.addEventListener('visibilitychange', () => {
+          FeedbackService.handleVisibilityChange();
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
           // Escape to return to idle (only when not already in idle mode)
@@ -854,7 +1136,14 @@
     // ========================================
     document.addEventListener('DOMContentLoaded', () => {
       EventHandlers.init();
-      console.log('間 Ma initialized');
+
+      // Manifest-Shortcut "Pause starten" (./?action=pause): direkt in die Pause.
+      // Ohne Nutzer-Geste blockieren Browser Ton und Vibration – Atemführung und Wake Lock laufen trotzdem.
+      const params = new URLSearchParams(location.search);
+      if (params.get('action') === 'pause') {
+        history.replaceState(null, '', location.pathname);
+        ModeController.startPause();
+      }
     });
 
     // ========================================
@@ -862,7 +1151,8 @@
     // ========================================
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // Relativer Pfad: funktioniert auch unter einem Unterpfad (z.B. /Ma-App/ auf GitHub Pages)
+        navigator.serviceWorker.register('./sw.js')
           .then((registration) => {
             console.log('[PWA] Service Worker registered:', registration.scope);
 
