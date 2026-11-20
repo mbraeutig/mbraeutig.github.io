@@ -1,0 +1,26 @@
+{
+  "name": "Minamo-Probe",
+  "short_name": "Minamo-Probe",
+  "description": "Probelauf Aufnahmen für Minamo – nach dem Test deinstallieren",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7F5F0",
+  "theme_color": "#F7F5F0",
+  "share_target": {
+    "action": "./teilen",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "audio", "accept": ["audio/*", ".m4a", ".mp3"] }]
+    }
+  },
+  "icons": [
+    { "src": "../minamo/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../minamo/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
