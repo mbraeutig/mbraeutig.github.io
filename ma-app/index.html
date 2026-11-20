@@ -590,13 +590,43 @@
       senseStepIndex: 0,
       reflectionText: '',
       
-      sensePrompts: [
-        "Was siehst du?",
-        "Was hörst du?",
-        "Was fühlst du auf deiner Haut?",
-        "Was riechst du?",
-        "Was schmeckst du?"
+      // Rotierender Pool: pro Sinn eine Frage je Pause, Reihenfolge der Sinne fest.
+      // Neue Fragen einfach ergänzen – kurz, offen, im Präsens, Du-Form.
+      sensePool: [
+        [ // Sehen
+          "Was siehst du?",
+          "Welche Farbe fällt dir gerade auf?",
+          "Wohin fällt das Licht?",
+          "Was liegt am Rand deines Blickfelds?"
+        ],
+        [ // Hören
+          "Was hörst du?",
+          "Was ist das leiseste Geräusch?",
+          "Was hörst du in der Ferne?",
+          "Was hörst du ganz in deiner Nähe?"
+        ],
+        [ // Fühlen
+          "Was fühlst du auf deiner Haut?",
+          "Wo berührt dein Körper den Boden?",
+          "Ist die Luft warm oder kühl?",
+          "Wie liegen deine Hände gerade?"
+        ],
+        [ // Riechen
+          "Was riechst du?",
+          "Wie riecht die Luft um dich?",
+          "Atme durch die Nase ein. Was ist da?",
+          "Riechst du etwas Vertrautes?"
+        ],
+        [ // Schmecken
+          "Was schmeckst du?",
+          "Welcher Geschmack ist noch in deinem Mund?",
+          "Schmeckst du die Luft beim Einatmen?",
+          "Wie fühlt sich dein Mund gerade an?"
+        ]
       ],
+
+      // Auswahl für die laufende Pause (wird in startSense() gezogen)
+      sensePrompts: [],
       
       // Getter/Setter Pattern
       setState(newState) {
@@ -618,6 +648,24 @@
     // ========================================
     const StorageService = {
       STORAGE_KEY: 'ma_reflections',
+      SENSE_KEY: 'ma_sense_last', // Indizes der zuletzt gezeigten Sinnes-Fragen (keine persönlichen Daten)
+
+      getLastSensePicks() {
+        try {
+          const data = JSON.parse(localStorage.getItem(this.SENSE_KEY));
+          return Array.isArray(data) ? data : [];
+        } catch (error) {
+          return [];
+        }
+      },
+
+      saveSensePicks(picks) {
+        try {
+          localStorage.setItem(this.SENSE_KEY, JSON.stringify(picks));
+        } catch (error) {
+          // Nicht kritisch – dann kann sich eine Frage direkt wiederholen
+        }
+      },
       
       getReflections() {
         try {
@@ -1003,8 +1051,23 @@
       // ========================================
       startSense() {
         UIService.showScreen('sense');
-        AppState.setState({ senseStepIndex: 0 });
+        AppState.setState({ senseStepIndex: 0, sensePrompts: this.pickSensePrompts() });
         this.showSensePrompt();
+      },
+
+      // Zieht pro Sinn eine zufällige Frage – nie dieselbe wie beim letzten Mal
+      pickSensePrompts() {
+        const last = StorageService.getLastSensePicks();
+
+        const picks = AppState.sensePool.map((prompts, sense) => {
+          const candidates = prompts
+            .map((_, index) => index)
+            .filter((index) => prompts.length === 1 || index !== last[sense]);
+          return candidates[Math.floor(Math.random() * candidates.length)];
+        });
+
+        StorageService.saveSensePicks(picks);
+        return picks.map((index, sense) => AppState.sensePool[sense][index]);
       },
       
       showSensePrompt() {

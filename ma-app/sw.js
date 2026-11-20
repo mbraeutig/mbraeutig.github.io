@@ -9,7 +9,7 @@
 // damit Icons/Manifest neu geladen und alte Caches entfernt werden.
 // ========================================
 
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 5;
 const CACHE_NAME = `ma-app-v${CACHE_VERSION}`;
 const INDEX_URL = './index.html';
 
