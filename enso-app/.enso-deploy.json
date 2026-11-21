@@ -1,0 +1,16 @@
+{
+  "app": "enso",
+  "deployedAt": "2026-11-21T15:53:33.015Z",
+  "sourceCommit": "3458360",
+  "cacheVersion": 3,
+  "files": [
+    "icons/apple-touch-icon.png",
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "icons/icon-maskable-512.png",
+    "icons/icon.svg",
+    "index.html",
+    "manifest.json",
+    "sw.js"
+  ]
+}
