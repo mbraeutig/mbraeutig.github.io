@@ -9,6 +9,7 @@ const {
   todayKey, addDays, dayHash, reflectPicks,
   isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
   tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
+  backlinkIndex, threadKeys, appendRef,
 } = TsuzukiCore;
 
 const STORE = 'tsuzuki.entries.v1';
@@ -20,6 +21,8 @@ const GREETINGS = [
 ];
 // Sonntags ersetzt er den wechselnden Satz — der Sonntagseintrag ist der Wochenrückblick.
 const SUNDAY_GREETING = 'Was bleibt von dieser Woche?';
+// Beim Weiterschreiben an einem alten Eintrag — 続き heißt „Fortsetzung“.
+const CONTINUE_GREETING = 'Wie ging es weiter?';
 const REFLECT_GREETINGS = [
   'Bevor du schreibst — ein Blick zurück.', 'Wo du warst.', 'Was war.',
 ];
@@ -123,11 +126,20 @@ function periodLabel(p) {
     : `${fmtDay(p.from, { day: 'numeric', month: 'short' })} – ${end}`;
 }
 function firstLine(text) { return (text.split('\n').find(l => l.trim()) || '').trim(); }
+// Klartext für eine Zeile: Verweise lesbar („↩ 22. Nov. 2025“ statt ISO).
+function plainLine(text) {
+  return tokenize(text).map(p => p.type === '↩' ? `↩ ${shortDate(p.value)}` : p.type === 'text' ? p.value : p.type + p.value).join('');
+}
+function texts() { return Object.fromEntries(Object.entries(entries).map(([k, v]) => [k, v.text])); }
+let backlinks = {};   // { Tag: [Tage, die darauf verweisen] } — bei jedem render() neu abgeleitet
 
 // ── Tokens im Text ────────────────────────────────────────────
 function richText(text) {
   return tokenize(text).map(p => {
     if (p.type === 'text') return esc(p.value);
+    if (p.type === '↩') {
+      return `<span class="tok ref" role="button" tabindex="0" data-thread="${esc(p.value)}" aria-label="Faden zum ${esc(humanDate(p.value))}"><span class="ref-arrow">↩</span> ${esc(shortDate(p.value))}</span>`;
+    }
     const cls = p.type === '@' ? 'person' : 'tag';
     // role/tabindex: per Tastatur erreichbar (Enter/Leertaste → siehe keydown unten)
     return `<span class="tok ${cls}" role="button" tabindex="0" data-kind="${p.type}" data-name="${esc(p.value)}">${esc(p.type + p.value)}</span>`;
@@ -155,6 +167,10 @@ function filteredEntries() {
   // Zeitraum: chronologisch, damit sich Woche/Monat/Jahr wie eine Erzählung liest.
   if (filter.kind === 'period') {
     return keysInPeriod(Object.keys(entries), filter).map(k => Object.assign({ key: k }, entries[k]));
+  }
+  // Faden: alles, was über ↩-Verweise zusammenhängt — chronologisch.
+  if (filter.kind === 'thread') {
+    return threadKeys(texts(), filter.key).map(k => Object.assign({ key: k }, entries[k]));
   }
   // Exakt wie in der Übersicht gezählt — @Franz trifft nicht @Franzi.
   return Object.keys(entries)
@@ -204,12 +220,20 @@ function writeGreeting(day) {
   if (day !== todayKey()) return 'Ein Tag, den du nachträgst.';
   return isoWeekday(day) === 7 ? SUNDAY_GREETING : pick(GREETINGS);
 }
-function openWrite(day) {
+function openWrite(day, greet) {
   activeDate = day;
-  greeting = writeGreeting(day);
+  greeting = greet || writeGreeting(day);
   view = 'write';
   render();
 }
+// „weiterschreiben“: heute öffnen, Verweis-Zeile ans Ende, Cursor dahinter.
+// Der Text wird sofort Entwurf — geht also auch ohne Festhalten nicht verloren.
+function continueFrom(key) {
+  const tk = todayKey();
+  setDraft(tk, appendRef(currentText(tk), key));
+  openWrite(tk, CONTINUE_GREETING);
+}
+function openThread(key) { filter = { kind: 'thread', key }; view = 'filter'; render(); }
 function openToken(kind, name) { filter = { kind, name }; view = 'filter'; render(); }
 function openPeriod(p) { filter = { kind: 'period', unit: p.unit, from: p.from, to: p.to }; view = 'filter'; render(); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -295,6 +319,7 @@ function toast(msg, actionLabel, action) {
 let renderedDay = todayKey();   // für welchen Tag die Ansicht zuletzt gebaut wurde
 function render() {
   renderedDay = todayKey();
+  backlinks = backlinkIndex(texts());
   const n = Object.keys(entries).length;
   headMeta.textContent = n ? `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}` : '—';
   if (view === 'write') renderWrite();
@@ -341,7 +366,8 @@ function updateWriteMeta(text) {
   const tokens = extractTokens(text);
   document.getElementById('chips').innerHTML =
     tokens.people.map(p => `<span class="chip person">@${esc(p)}</span>`).join('') +
-    tokens.tags.map(t => `<span class="chip tag">#${esc(t)}</span>`).join('');
+    tokens.tags.map(t => `<span class="chip tag">#${esc(t)}</span>`).join('') +
+    tokens.refs.map(r => `<span class="chip ref">↩ ${esc(shortDate(r))}</span>`).join('');
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const count = words === 0 ? 'noch leer' : words + (words === 1 ? ' Wort' : ' Wörter');
   document.getElementById('word-count').textContent = count + (activeDate in drafts ? ' · Entwurf' : '');
@@ -400,8 +426,13 @@ function renderReflect() {
   document.getElementById('go-write').onclick = () => openWrite(todayKey());
 }
 
-// Kartendatum → Monat, „… wiederlesen“ → Zeitraum. Werte: „unit|from“.
+// Kartendatum → Monat, „… wiederlesen“ → Zeitraum („unit|from“),
+// ↩-Verweis / „fortgesetzt am …“ → Faden, „weiterschreiben“ → heute.
 function bindPeriodLinks() {
+  main.querySelectorAll('[data-thread]').forEach(el =>
+    el.onclick = () => openThread(el.dataset.thread));
+  main.querySelectorAll('[data-continue]').forEach(el =>
+    el.onclick = () => continueFrom(el.dataset.continue));
   main.querySelectorAll('[data-month]').forEach(el =>
     el.onclick = () => openPeriod(periodOf('month', el.dataset.month)));
   main.querySelectorAll('[data-open-period]').forEach(el => {
@@ -429,7 +460,7 @@ function periodCard(pp) {
   if (pp.unit === 'week') {
     // Nur beschriebene Tage, je eine Zeile — kein „4 von 7“, keine leeren Kästchen.
     const lines = pp.keys.map(k =>
-      `<li><span class="wk-day">${weekdayShort(k)}</span><span class="wk-line">${esc(firstLine(entries[k].text))}</span></li>`).join('');
+      `<li><span class="wk-day">${weekdayShort(k)}</span><span class="wk-line">${esc(plainLine(firstLine(entries[k].text)))}</span></li>`).join('');
     const chips = periodTokens(pp.keys);
     return `<div class="card period" data-week="${pp.from}">
       <div class="card-head">
@@ -470,6 +501,17 @@ function dateLink(key, text) {
   return `<button class="card-sub card-date" data-month="${esc(key)}" aria-label="${esc(monthName(key))} wiederlesen">${esc(text)}</button>`;
 }
 
+// Fuß einer früheren Karte: „fortgesetzt am …“ (abgeleitet) und „weiterschreiben ›“.
+function cardFoot(key, { showContinued = true } = {}) {
+  const conts = showContinued ? (backlinks[key] || []) : [];
+  const recent = conts.slice(-2).map(shortDate).join(' und ');
+  const cont = conts.length
+    ? `<button class="card-link cont" data-thread="${esc(key)}">fortgesetzt am ${esc(recent)}${conts.length > 2 ? ' u. a.' : ''}</button>`
+    : '';
+  const write = key < todayKey() ? `<button class="card-link write-on" data-continue="${esc(key)}">weiterschreiben ›</button>` : '';
+  return cont || write ? `<div class="card-foot">${cont}${write}</div>` : '';
+}
+
 function card(label, key, sub, accent) {
   return `<div class="card${accent ? ' accent' : ''}" data-day="${esc(key)}">
     <div class="card-head">
@@ -477,15 +519,22 @@ function card(label, key, sub, accent) {
       ${dateLink(key, sub)}
     </div>
     <p class="card-body">${richText(entries[key].text)}</p>
+    ${cardFoot(key)}
   </div>`;
 }
 
 function renderFilter() {
   const list = filteredEntries();
-  const isPeriod = filter.kind === 'period';
+  const isPeriod = filter.kind === 'period', isThread = filter.kind === 'thread';
   let html = '<div class="stack fade-in">';
   html += `<button class="back-btn" id="back">‹ zurück</button>`;
-  if (isPeriod) {
+  if (isThread) {
+    // Ein Faden: wie ein Gespräch mit dem eigenen früheren Ich.
+    const span = list.length > 1 ? `${shortDate(list[0].key)} – ${shortDate(list[list.length - 1].key)}` : '';
+    html += `<div class="filter-head"><span class="filter-period">↩ Faden</span>` +
+      `<span class="card-sub">${esc(span)}</span></div>`;
+    if (!list.length) html += `<p class="empty-text">Hier ist es still.</p>`;
+  } else if (isPeriod) {
     // Blättern statt Kalender-Raster; nicht über heute hinaus. Ohne Zählung —
     // eine Woche ist kein „3 von 7“.
     const next = shiftPeriod(filter, 1);
@@ -504,8 +553,9 @@ function renderFilter() {
   const linkDates = !(isPeriod && filter.unit === 'month');
   list.forEach(e => {
     const date = linkDates ? dateLink(e.key, humanDate(e.key)) : `<span class="card-sub">${humanDate(e.key)}</span>`;
+    // Im Faden führt „fortgesetzt am …“ nur in denselben Faden — dort weglassen.
     html += `<div class="card" data-day="${esc(e.key)}"><div class="card-head">${date}</div>` +
-      `<p class="card-body">${richText(e.text)}</p></div>`;
+      `<p class="card-body">${richText(e.text)}</p>${cardFoot(e.key, { showContinued: !isThread })}</div>`;
   });
   html += '</div>';
   main.className = '';

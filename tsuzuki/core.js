@@ -132,29 +132,67 @@
   // · Nicht direkt nach Buchstabe/Ziffer, „/“ oder „&“ → keine E-Mails,
   //   keine URL-Anker (…/#top, …seite#abschnitt), kein C#, keine &#123;
   // · Mindestens ein Buchstabe → #1, #2024 sind keine Themen (wie in Obsidian)
-  const TOKEN_RE = /(?<![\p{L}\p{M}\p{N}_\/&])([@#])([\p{L}\p{M}\p{N}_]+(?:-[\p{L}\p{M}\p{N}_]+)*)/gu;
+  // ↩ JJJJ-MM-TT — Verweis auf einen früheren Tag („Weiterschreiben“, 続き).
+  // Leerzeichen nach dem Pfeil optional; nur gültige Tage zählen. ️: die
+  // Emoji-Tastatur (iOS) hängt an ↩ oft ein unsichtbares Variations-Zeichen an.
+  const TOKEN_RE = new RegExp(
+    '(↩)\\uFE0F?[ \\t]?(\\d{4}-\\d{2}-\\d{2})(?!\\d)' + '|' +
+    '(?<![\\p{L}\\p{M}\\p{N}_\\/&])([@#])([\\p{L}\\p{M}\\p{N}_]+(?:-[\\p{L}\\p{M}\\p{N}_]+)*)', 'gu');
   const HAS_LETTER = /\p{L}/u;
+  const REF = '↩';
 
-  // Zerlegt Text in [{type:'text'|'@'|'#', value}] — einzige Stelle der Token-Regel.
+  // Zerlegt Text in [{type:'text'|'@'|'#'|'↩', value}] — einzige Stelle der Token-Regel.
   function tokenize(text) {
     const parts = [];
     let last = 0;
     for (const m of text.matchAll(TOKEN_RE)) {
-      if (!HAS_LETTER.test(m[2])) continue;
+      const tok = m[1] ? { type: REF, value: m[2] } : { type: m[3], value: m[4] };
+      if (tok.type === REF ? !isValidDay(tok.value) : !HAS_LETTER.test(tok.value)) continue;
       if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
-      parts.push({ type: m[1], value: m[2] });
+      parts.push(tok);
       last = m.index + m[0].length;
     }
     if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
     return parts;
   }
   function extractTokens(text) {
-    const people = new Set(), tags = new Set();
+    const people = new Set(), tags = new Set(), refs = new Set();
     for (const p of tokenize(text)) {
       if (p.type === '@') people.add(p.value);
       else if (p.type === '#') tags.add(p.value);
+      else if (p.type === REF) refs.add(p.value);
     }
-    return { people: [...people], tags: [...tags] };
+    return { people: [...people], tags: [...tags], refs: [...refs] };
+  }
+
+  // ── Fäden: Einträge, die über ↩-Verweise zusammenhängen ───────
+  // texts: { key: text }. → { key: [Tage, die auf key verweisen] } (aufsteigend)
+  function backlinkIndex(texts) {
+    const idx = {};
+    for (const k of Object.keys(texts).sort()) {
+      for (const r of extractTokens(texts[k]).refs) {
+        if (r !== k) (idx[r] = idx[r] || []).push(k);
+      }
+    }
+    return idx;
+  }
+  // Der ganze Faden um key: alle Tage, die in beide Richtungen über Verweise
+  // verbunden sind — nur vorhandene Einträge, chronologisch.
+  function threadKeys(texts, key) {
+    const back = backlinkIndex(texts);
+    const seen = new Set([key]), queue = [key];
+    while (queue.length) {
+      const k = queue.shift();
+      const next = [...(back[k] || []), ...(texts[k] !== undefined ? extractTokens(texts[k]).refs : [])];
+      for (const n of next) if (!seen.has(n)) { seen.add(n); queue.push(n); }
+    }
+    return [...seen].filter(k => texts[k] !== undefined).sort();
+  }
+  // Text für „weiterschreiben“: Verweis-Zeile ans Ende — nie doppelt.
+  function appendRef(text, key) {
+    if (extractTokens(text).refs.includes(key)) return text;
+    const sep = !text.trim() ? '' : text.endsWith('\n\n') ? '' : text.endsWith('\n') ? '\n' : '\n\n';
+    return `${text.trim() ? text : ''}${sep}${REF} ${key} `;
   }
   // Exakter Treffer (inkl. Groß/Klein) — passt so zur Zählung in der Übersicht.
   function entryHasToken(text, kind, name) {
@@ -227,7 +265,7 @@
   const Core = {
     todayKey, addDays, isValidDay, dayNumber, sameDayYearsAgo, dayHash, reflectPicks,
     isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
-    tokenize, extractTokens, entryHasToken, esc,
+    tokenize, extractTokens, entryHasToken, esc, backlinkIndex, threadKeys, appendRef,
     buildMarkdown, parseMarkdown,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Core;
