@@ -185,15 +185,20 @@ async function exportMarkdown() {
 function importMarkdown(md) {
   const { entries: found, invalid, duplicate } = parseMarkdown(md);
   if (!found.length) { toast('Keine Einträge in der Datei gefunden'); return; }
-  let added = 0, existing = 0;
+  let added = 0, existing = 0, differing = 0;
   found.forEach(({ key, text }) => {
-    if (entries[key]) { existing++; return; }               // bestehende nie überschreiben
+    if (entries[key]) {                                      // bestehende nie überschreiben
+      existing++;
+      if (entries[key].text !== text) differing++;           // … aber sagen, wenn sie abweichen
+      return;
+    }
     entries[key] = { text, edited: Date.now() };
     added++;
   });
   if (added) save();
   const parts = [`${added} importiert`];
-  if (existing) parts.push(`${existing} schon vorhanden`);
+  if (existing) parts.push(`${existing} schon vorhanden` +
+    (differing ? ` (${differing} abweichend — deine Fassung bleibt)` : ''));
   if (duplicate) parts.push(`${duplicate} doppelt`);
   if (invalid) parts.push(`${invalid} mit ungültigem Datum`);
   toast(parts.join(' · '));

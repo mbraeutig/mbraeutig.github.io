@@ -16,9 +16,10 @@
     --ink:#1c1b1a; --paper:#f3efe6; --paper-deep:#ebe5d8; --card:#faf7f0;
     /* Kontrast ≥ 4,5:1 auf Papier und Karte (WCAG AA) — im Farbton der ursprünglichen Töne */
     --ai:#3a4a6b; --ai-soft:#5f6b84; --fade:#716c5f; --tag:#7d6336;
-    --serif:'Iowan Old Style','Palatino Linotype',Georgia,serif;
-    --mono:ui-monospace,'SF Mono',Menlo,monospace;
-    --mincho:'Hiragino Mincho ProN','Yu Mincho',serif;
+    /* Nur Systemschriften (kein Netz). Noto-Namen: Rückfall für Android/Linux. */
+    --serif:'Iowan Old Style','Palatino Linotype',Georgia,'Noto Serif',serif;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Roboto Mono','Noto Sans Mono',monospace;
+    --mincho:'Hiragino Mincho ProN','Yu Mincho','Noto Serif CJK JP','Noto Serif JP','Source Han Serif JP',serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--serif);}

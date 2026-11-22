@@ -114,47 +114,49 @@
   }
 
   // ── Markdown-Format (Export/Import) ───────────────────────────
-  // Pro Tag:  ## JJJJ-MM-TT · Frontmatter · Text · Trennlinie ---
+  // Format v2 (seit 2026-11-22):  ## JJJJ-MM-TT · Text · Trennlinie ---
+  // Bewusst ohne Metadaten je Tag: Obsidian liest Frontmatter nur am
+  // Dateianfang, mitten in der Datei wurde der Block zur Überschrift. Personen
+  // und Themen stehen ohnehin im Text.
   // Eine Textzeile, die selbst wie eine Tages-Überschrift aussieht, wird mit
   // „\“ maskiert (und beim Import wieder demaskiert) — sonst würde sie den
   // Eintrag beim Import zerteilen.
+  // Formatkennung in der Kopfzeile — lesbar in jedem Viewer (ein HTML-Kommentar
+  // erschiene dort, wo HTML abgeschaltet ist, als sichtbarer Text).
+  const V2_MARK_RE = /^>.*·\s*Format 2[ \t]*$/m;
   const HEADING_RE = /^##[ \t]+(\d{4}-\d{2}-\d{2})[ \t]*$/gm;
   const ESCAPE_RE = /^(\\*##[ \t]+\d{4}-\d{2}-\d{2}[ \t]*)$/gm;
   const UNESCAPE_RE = /^\\(\\*##[ \t]+\d{4}-\d{2}-\d{2}[ \t]*)$/gm;
-  // Frontmatter direkt nach der Überschrift; erste Zeile muss „schlüssel:“ sein.
+  // Format v1: Frontmatter direkt nach der Überschrift; erste Zeile „schlüssel:“.
   const FRONTMATTER_RE = /^\s*---\n[\w-]+:[^\n]*\n(?:[^\n]*\n)*?---[ \t]*(?:\n|$)/;
   // Genau eine Trennlinie am Abschnittsende (eine eigene --- im Text bleibt).
   const TRAILING_SEP_RE = /\n[ \t]*---[ \t]*\n*$/;
 
-  // YAML-Liste mit Anführungszeichen: ohne würden no/yes/null/2024 zu
-  // Boolean, Null oder Zahl statt zu Text.
-  const yamlList = items => `[${items.map(s => `"${s.replace(/[\\"]/g, '\\$&')}"`).join(', ')}]`;
-
   function buildMarkdown(entries, today) {
     const keys = Object.keys(entries).sort();
-    const blocks = keys.map(k => {
-      const text = entries[k].text, t = extractTokens(text);
-      const people = t.people.length ? `people: ${yamlList(t.people)}\n` : '';
-      const tags = t.tags.length ? `tags: ${yamlList(t.tags)}\n` : '';
-      return `## ${k}\n\n---\ndate: ${k}\nsource: tsuzuki\n${people}${tags}---\n\n` +
-        `${text.replace(ESCAPE_RE, '\\$1')}\n\n---\n`;
-    });
+    const blocks = keys.map(k => `## ${k}\n\n${entries[k].text.replace(ESCAPE_RE, '\\$1')}\n\n---\n`);
     const count = `${keys.length} ${keys.length === 1 ? 'Eintrag' : 'Einträge'}`;
-    return `# Tsuzuki 続き — Journal-Export\n\n> ${count} · exportiert ${today}\n\n---\n\n` + blocks.join('\n');
+    // „Format 2“ sagt dem Import: hier gibt es kein Frontmatter — ein Text,
+    // der wie Frontmatter beginnt, bleibt Text.
+    return `# Tsuzuki 続き — Journal-Export\n\n> ${count} · exportiert ${today} · Format 2\n\n---\n\n` +
+      blocks.join('\n');
   }
 
-  // Liest Tsuzuki-Exporte (alt und neu) und schlichtes „## JJJJ-MM-TT“-Markdown.
+  // Liest Tsuzuki-Exporte (v2 und v1) und schlichtes „## JJJJ-MM-TT“-Markdown.
   // Liefert die Einträge in Dateireihenfolge; doppelte Tage: der erste gilt.
   function parseMarkdown(md) {
     const text = md.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
     const heads = [...text.matchAll(HEADING_RE)];
+    // Nur im Kopf (vor dem ersten Tag) suchen — ein Eintrag könnte den Text enthalten.
+    const v2 = V2_MARK_RE.test(text.slice(0, heads.length ? heads[0].index : text.length));
     const found = [], seen = new Set();
     let invalid = 0, duplicate = 0;
     heads.forEach((h, i) => {
       const key = h[1];
       const end = i + 1 < heads.length ? heads[i + 1].index : text.length;
-      const body = text.slice(h.index + h[0].length, end)
-        .replace(FRONTMATTER_RE, '')
+      let body = text.slice(h.index + h[0].length, end);
+      if (!v2) body = body.replace(FRONTMATTER_RE, '');
+      body = body
         .replace(TRAILING_SEP_RE, '')
         .replace(UNESCAPE_RE, '$1')
         .trim();
