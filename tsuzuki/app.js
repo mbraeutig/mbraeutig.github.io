@@ -563,11 +563,14 @@ function renderFilter() {
   }
   // Im Monat selbst führt das Datum nirgendwohin Neues — dort bleibt es Text.
   const linkDates = !(isPeriod && filter.unit === 'month');
-  list.forEach(e => {
+  list.forEach((e, i) => {
     const date = linkDates ? dateLink(e.key, humanDate(e.key)) : `<span class="card-sub">${humanDate(e.key)}</span>`;
     // Im Faden führt „fortgesetzt am …“ nur in denselben Faden — dort weglassen.
+    // „weiterschreiben ›“ einmal, unter dem jüngsten Eintrag: dort endet das
+    // Gespräch, und der neue Eintrag verweist auf den letzten Stand (Kette statt Stern).
+    const opts = { showContinued: !isThread, offerWrite: isThread && i === list.length - 1 };
     html += `<div class="card" data-day="${esc(e.key)}"><div class="card-head">${date}</div>` +
-      `<p class="card-body">${richText(e.text)}</p>${cardFoot(e.key, { showContinued: !isThread })}</div>`;
+      `<p class="card-body">${richText(e.text)}</p>${cardFoot(e.key, opts)}</div>`;
   });
   html += '</div>';
   main.className = '';
