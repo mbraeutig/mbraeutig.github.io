@@ -14,7 +14,8 @@
 <style>
   :root{
     --ink:#1c1b1a; --paper:#f3efe6; --paper-deep:#ebe5d8; --card:#faf7f0;
-    --ai:#3a4a6b; --ai-soft:#6b7894; --fade:#a39e92; --tag:#8a6d3b;
+    /* Kontrast ≥ 4,5:1 auf Papier und Karte (WCAG AA) — im Farbton der ursprünglichen Töne */
+    --ai:#3a4a6b; --ai-soft:#5f6b84; --fade:#716c5f; --tag:#7d6336;
     --serif:'Iowan Old Style','Palatino Linotype',Georgia,serif;
     --mono:ui-monospace,'SF Mono',Menlo,monospace;
     --mincho:'Hiragino Mincho ProN','Yu Mincho',serif;
@@ -39,8 +40,11 @@
   /* write */
   .date-line{font-size:11.5px;letter-spacing:1px;color:var(--fade);font-family:var(--mono);
     margin-bottom:18px;display:flex;align-items:center;gap:10px;}
-  .date-nav{background:none;border:none;color:var(--ai-soft);font-size:14px;cursor:pointer;
-    padding:2px 6px;font-family:var(--mono);}
+  /* 44×44-px-Tippfläche; negative Ränder halten die Zeile optisch so schmal wie zuvor */
+  .date-nav{background:none;border:none;color:var(--ai-soft);font-size:16px;cursor:pointer;
+    min-width:44px;min-height:44px;margin:-13px -8px;padding:0;font-family:var(--mono);
+    display:inline-flex;align-items:center;justify-content:center;}
+  .date-nav:first-child{margin-left:-15px;}
   .date-nav:disabled{opacity:.25;cursor:default;}
   .prompt{font-size:21px;line-height:1.4;color:var(--ai);margin-bottom:20px;font-style:italic;}
   textarea{width:100%;min-height:200px;border:none;outline:none;background:transparent;resize:none;
@@ -72,7 +76,7 @@
   .tok-btn.draft{color:var(--ink);background:var(--paper-deep);}
   .tok-more{font-size:12.5px;border:1px solid var(--paper-deep);background:none;color:var(--ai-soft);
     padding:4px 10px;border-radius:2px;cursor:pointer;font-family:var(--mono);}
-  .tok-count{font-size:10.5px;opacity:.55;}
+  .tok-count{font-size:10.5px;}  /* volle Deckkraft — mit .55 lag der Kontrast unter 3:1 */
   .card{background:var(--card);border:1px solid var(--paper-deep);border-radius:3px;padding:18px 20px;}
   .card.accent{border-left:2px solid var(--ai);}
   .card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
@@ -80,9 +84,10 @@
   .card-label.accent{color:var(--ai);}
   .card-sub{font-size:11px;color:var(--fade);font-family:var(--mono);}
   .card-body{font-size:16px;line-height:1.65;color:#2e2c29;white-space:pre-wrap;margin:0;}
-  .tok{cursor:pointer;font-weight:600;}
-  .tok.person{color:var(--ai);}
-  .tok.tag{color:var(--tag);}
+  /* Innenabstand vergrößert die Tippfläche; negativer Rand verhindert, dass der Text verrutscht */
+  .tok{cursor:pointer;font-weight:600;padding:6px 3px;margin:0 -3px;border-radius:2px;}
+  .tok.person,.c-person{color:var(--ai);}
+  .tok.tag,.c-tag{color:var(--tag);}
   .cta-write{background:none;border:1px solid var(--paper-deep);border-radius:3px;padding:14px;
     width:100%;color:var(--ai);font-size:15px;font-family:var(--serif);cursor:pointer;font-style:italic;}
 
@@ -91,7 +96,8 @@
   .empty-text{font-size:15px;line-height:1.6;color:var(--fade);font-style:italic;}
 
   .back-btn{align-self:flex-start;background:none;border:none;color:var(--ai-soft);font-size:14px;
-    cursor:pointer;font-family:var(--serif);padding:0;margin-bottom:4px;}
+    cursor:pointer;font-family:var(--serif);padding:0 16px 0 0;min-height:44px;margin:-12px 0 -8px;
+    display:inline-flex;align-items:center;}
   .filter-head{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;
     border-bottom:1px solid var(--paper-deep);}
   .filter-token{font-size:18px;font-weight:600;font-family:var(--mono);}
@@ -105,7 +111,7 @@
   .nav-btn.active{color:var(--ink);}
   .nav-glyph{font-size:19px;font-family:var(--mincho);}
   .nav-label{font-size:11px;letter-spacing:.3px;}
-  button:focus-visible{outline:2px solid var(--ai);outline-offset:2px;}
+  button:focus-visible,[role=button]:focus-visible{outline:2px solid var(--ai);outline-offset:2px;}
 
   .toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
     background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:3px;font-size:13px;opacity:0;

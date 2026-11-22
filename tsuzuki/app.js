@@ -12,7 +12,6 @@ const {
 
 const STORE = 'tsuzuki.entries.v1';
 const DRAFTS = 'tsuzuki.drafts.v1';   // ungespeicherte Entwürfe — überleben App-Neustart
-const AI = '#3a4a6b', TAG = '#8a6d3b';
 
 const GREETINGS = [
   'Was trägst du heute?', 'Ein Gedanke genügt.', 'Wie war dieser Tag wirklich?',
@@ -92,7 +91,8 @@ function richText(text) {
   return tokenize(text).map(p => {
     if (p.type === 'text') return esc(p.value);
     const cls = p.type === '@' ? 'person' : 'tag';
-    return `<span class="tok ${cls}" data-kind="${p.type}" data-name="${esc(p.value)}">${esc(p.type + p.value)}</span>`;
+    // role/tabindex: per Tastatur erreichbar (Enter/Leertaste → siehe keydown unten)
+    return `<span class="tok ${cls}" role="button" tabindex="0" data-kind="${p.type}" data-name="${esc(p.value)}">${esc(p.type + p.value)}</span>`;
   }).join('');
 }
 
@@ -225,7 +225,9 @@ function toast(msg, actionLabel, action) {
   toastTimer = setTimeout(hideToast, actionLabel ? 5000 : Math.max(1600, msg.length * 70));
 }
 
+let renderedDay = todayKey();   // für welchen Tag die Ansicht zuletzt gebaut wurde
 function render() {
+  renderedDay = todayKey();
   const n = Object.keys(entries).length;
   headMeta.textContent = n ? `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}` : '—';
   if (view === 'write') renderWrite();
@@ -254,7 +256,7 @@ function renderWrite() {
       <span class="word-count" id="word-count"></span>
       <button class="save-btn" id="save">Festhalten</button>
     </div>
-    <p class="wabi">Schreib einfach. <span style="color:${AI}">@Namen</span> und <span style="color:${TAG}">#Themen</span> erkennt Tsuzuki von selbst.</p>
+    <p class="wabi">Schreib einfach. <span class="c-person">@Namen</span> und <span class="c-tag">#Themen</span> erkennt Tsuzuki von selbst.</p>
   `;
   const ta = document.getElementById('ta');
   ta.value = currentText(activeDate);   // per value, nicht per HTML — führende Zeilenumbrüche bleiben erhalten
@@ -352,10 +354,10 @@ function card(label, key, sub, accent) {
 
 function renderFilter() {
   const list = filteredEntries();
-  const color = filter.kind === '@' ? AI : TAG;
+  const cls = filter.kind === '@' ? 'c-person' : 'c-tag';
   let html = '<div class="stack fade-in">';
   html += `<button class="back-btn" id="back">‹ zurück</button>`;
-  html += `<div class="filter-head"><span class="filter-token" style="color:${color}">${esc(filter.kind + filter.name)}</span>` +
+  html += `<div class="filter-head"><span class="filter-token ${cls}">${esc(filter.kind + filter.name)}</span>` +
     `<span class="card-sub">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>`;
   list.forEach(e => {
     html += `<div class="card"><div class="card-head"><span class="card-sub">${humanDate(e.key)}</span></div>` +
@@ -382,6 +384,34 @@ function renderNav() {
   document.getElementById('nav-export').onclick = exportMarkdown;
   document.getElementById('nav-import').onclick = () => importInput.click();
 }
+
+// Tokens im Text sind <span role="button"> — Enter/Leertaste wie ein Klick.
+main.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('span[role="button"]')) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+// ── Neuer Tag beim Zurückkehren ───────────────────────────────
+// Eine installierte App bleibt oft tagelang im Hintergrund offen. Kommt sie
+// nach Mitternacht zurück, soll „heute“ auch heute sein — sonst landet der
+// Morgen-Eintrag auf dem Vortag. Beim aktiven Schreiben über Mitternacht
+// passiert nichts (es gibt kein Ereignis): man schreibt für den Tag, den man begann.
+function onResume() {
+  if (document.visibilityState === 'hidden') return;
+  const prevDay = renderedDay;
+  if (todayKey() === prevDay) return;
+  if (view === 'write' && activeDate === prevDay) {
+    const hadDraft = prevDay in drafts;     // bleibt gespeichert → „Offene Entwürfe“
+    openWrite(todayKey());
+    if (hadDraft) toast('Ein neuer Tag · dein Entwurf wartet unter „Offene Entwürfe“');
+  } else {
+    render();                               // Rückblick, Datums-Beschriftungen auffrischen
+  }
+}
+document.addEventListener('visibilitychange', onResume);
+window.addEventListener('pageshow', onResume);
 
 importInput.addEventListener('change', e => {
   const file = e.target.files[0];

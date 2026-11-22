@@ -126,12 +126,16 @@
   // Genau eine Trennlinie am Abschnittsende (eine eigene --- im Text bleibt).
   const TRAILING_SEP_RE = /\n[ \t]*---[ \t]*\n*$/;
 
+  // YAML-Liste mit Anführungszeichen: ohne würden no/yes/null/2024 zu
+  // Boolean, Null oder Zahl statt zu Text.
+  const yamlList = items => `[${items.map(s => `"${s.replace(/[\\"]/g, '\\$&')}"`).join(', ')}]`;
+
   function buildMarkdown(entries, today) {
     const keys = Object.keys(entries).sort();
     const blocks = keys.map(k => {
       const text = entries[k].text, t = extractTokens(text);
-      const people = t.people.length ? `people: [${t.people.join(', ')}]\n` : '';
-      const tags = t.tags.length ? `tags: [${t.tags.join(', ')}]\n` : '';
+      const people = t.people.length ? `people: ${yamlList(t.people)}\n` : '';
+      const tags = t.tags.length ? `tags: ${yamlList(t.tags)}\n` : '';
       return `## ${k}\n\n---\ndate: ${k}\nsource: tsuzuki\n${people}${tags}---\n\n` +
         `${text.replace(ESCAPE_RE, '\\$1')}\n\n---\n`;
     });
