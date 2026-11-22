@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "things": [
+    {
+      "id": "vorlage-brueckentage-2027-bw-01",
+      "containerId": "day:2027-05-07",
+      "order": 1,
+      "type": "note",
+      "text": "#brückentag Christi Himmelfahrt",
+      "createdAt": "2027-05-06T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-brueckentage-2027-bw-02",
+      "containerId": "day:2027-05-28",
+      "order": 1,
+      "type": "note",
+      "text": "#brückentag Fronleichnam",
+      "createdAt": "2027-05-27T22:00:00.000Z"
+    }
+  ]
+}

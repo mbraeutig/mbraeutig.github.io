@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "things": [
+    {
+      "id": "vorlage-feiertage-2027-bw-01",
+      "containerId": "day:2027-01-01",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Neujahr",
+      "createdAt": "2026-12-31T23:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-02",
+      "containerId": "day:2027-01-06",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Heilige Drei Könige",
+      "createdAt": "2027-01-05T23:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-03",
+      "containerId": "day:2027-03-26",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Karfreitag",
+      "createdAt": "2027-03-25T23:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-04",
+      "containerId": "day:2027-03-29",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Ostermontag",
+      "createdAt": "2027-03-28T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-05",
+      "containerId": "day:2027-05-01",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Tag der Arbeit",
+      "createdAt": "2027-04-30T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-06",
+      "containerId": "day:2027-05-06",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Christi Himmelfahrt",
+      "createdAt": "2027-05-05T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-07",
+      "containerId": "day:2027-05-17",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Pfingstmontag",
+      "createdAt": "2027-05-16T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-08",
+      "containerId": "day:2027-05-27",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Fronleichnam",
+      "createdAt": "2027-05-26T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-09",
+      "containerId": "day:2027-10-03",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Tag der Deutschen Einheit",
+      "createdAt": "2027-10-02T22:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-10",
+      "containerId": "day:2027-11-01",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag Allerheiligen",
+      "createdAt": "2027-10-31T23:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-11",
+      "containerId": "day:2027-12-25",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag 1. Weihnachtstag",
+      "createdAt": "2027-12-24T23:00:00.000Z"
+    },
+    {
+      "id": "vorlage-feiertage-2027-bw-12",
+      "containerId": "day:2027-12-26",
+      "order": 1,
+      "type": "note",
+      "text": "#feiertag 2. Weihnachtstag",
+      "createdAt": "2027-12-25T23:00:00.000Z"
+    }
+  ]
+}
