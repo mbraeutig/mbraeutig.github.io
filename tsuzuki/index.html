@@ -117,11 +117,12 @@
   .toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
     background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:3px;font-size:13px;opacity:0;
     transition:opacity .3s;pointer-events:none;z-index:10;display:flex;align-items:center;gap:14px;
-    white-space:nowrap;}
+    /* Lange Meldungen (Import-Bilanz) umbrechen statt über den Bildschirmrand laufen */
+    width:max-content;max-width:min(440px, calc(100vw - 32px));text-align:center;line-height:1.4;}
   .toast.show{opacity:1;}
   .toast.show.has-action{pointer-events:auto;}
   .toast-action{background:none;border:none;color:var(--paper);font:inherit;text-decoration:underline;
-    text-underline-offset:3px;padding:6px 2px;margin:-6px 0;cursor:pointer;}
+    text-underline-offset:3px;padding:6px 2px;margin:-6px 0;cursor:pointer;white-space:nowrap;flex-shrink:0;}
   input[type=file]{display:none;}
 </style>
 </head>

@@ -46,7 +46,8 @@
   // keys: alle Eintragstage · today: JJJJ-MM-TT
   // → { last, years: [{key, yearsAgo, exact}], memory } — nie ein Tag doppelt.
   function reflectPicks(keys, today) {
-    const past = keys.filter(k => k < today).sort();
+    // Nur gültige Tage — ein kaputter Schlüssel ergäbe NaN und die Jahres-Schleife liefe endlos.
+    const past = keys.filter(k => k < today && isValidDay(k)).sort();
     const out = { last: null, years: [], memory: null };
     if (!past.length) return out;
     const shown = new Set();
@@ -127,8 +128,11 @@
   const HEADING_RE = /^##[ \t]+(\d{4}-\d{2}-\d{2})[ \t]*$/gm;
   const ESCAPE_RE = /^(\\*##[ \t]+\d{4}-\d{2}-\d{2}[ \t]*)$/gm;
   const UNESCAPE_RE = /^\\(\\*##[ \t]+\d{4}-\d{2}-\d{2}[ \t]*)$/gm;
-  // Format v1: Frontmatter direkt nach der Überschrift; erste Zeile „schlüssel:“.
-  const FRONTMATTER_RE = /^\s*---\n[\w-]+:[^\n]*\n(?:[^\n]*\n)*?---[ \t]*(?:\n|$)/;
+  // Format v1: Tsuzuki schrieb direkt nach der Überschrift einen Block, dessen
+  // erste Zeile „date: <derselbe Tag>“ ist. Nur genau so ein Block wird entfernt —
+  // ein eigener Text, der bloß ähnlich beginnt („---\nort: Berlin\n---“), bleibt.
+  const v1FrontmatterRe = key =>
+    new RegExp(`^\\s*---\\ndate:[ \\t]*${key}[ \\t]*\\n(?:[^\\n]*\\n)*?---[ \\t]*(?:\\n|$)`);
   // Genau eine Trennlinie am Abschnittsende (eine eigene --- im Text bleibt).
   const TRAILING_SEP_RE = /\n[ \t]*---[ \t]*\n*$/;
 
@@ -136,8 +140,8 @@
     const keys = Object.keys(entries).sort();
     const blocks = keys.map(k => `## ${k}\n\n${entries[k].text.replace(ESCAPE_RE, '\\$1')}\n\n---\n`);
     const count = `${keys.length} ${keys.length === 1 ? 'Eintrag' : 'Einträge'}`;
-    // „Format 2“ sagt dem Import: hier gibt es kein Frontmatter — ein Text,
-    // der wie Frontmatter beginnt, bleibt Text.
+    // „Format 2“ sagt dem Import: hier gibt es kein Frontmatter — auch ein Text,
+    // der mit „---\ndate: <Tag>“ beginnt, bleibt Text.
     return `# Tsuzuki 続き — Journal-Export\n\n> ${count} · exportiert ${today} · Format 2\n\n---\n\n` +
       blocks.join('\n');
   }
@@ -155,7 +159,7 @@
       const key = h[1];
       const end = i + 1 < heads.length ? heads[i + 1].index : text.length;
       let body = text.slice(h.index + h[0].length, end);
-      if (!v2) body = body.replace(FRONTMATTER_RE, '');
+      if (!v2) body = body.replace(v1FrontmatterRe(key), '');
       body = body
         .replace(TRAILING_SEP_RE, '')
         .replace(UNESCAPE_RE, '$1')

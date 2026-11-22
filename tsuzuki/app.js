@@ -27,8 +27,8 @@ const EMPTY = [
 const TOKEN_LIMIT = 8;      // Menschen/Themen im Rückblick: so viele, dann „+ N weitere“
 
 // ── State ─────────────────────────────────────────────────────
-let entries = load(STORE);
-let drafts = load(DRAFTS);  // { 'JJJJ-MM-TT': text } — nur Tage, deren Text vom Eintrag abweicht
+let entries = loadEntries();
+let drafts = loadDrafts();  // { 'JJJJ-MM-TT': text } — nur Tage, deren Text vom Eintrag abweicht
 // Reflect-First: Start auf Rückblick, außer es gibt noch nichts.
 let view = Object.keys(entries).length === 0 ? 'write' : 'reflect';
 let filter = null;          // {kind:'@'|'#', name}
@@ -38,12 +38,31 @@ let tokensExpanded = { '@': false, '#': false }; // „+ N weitere“ aufgeklapp
 
 // ── Persistence ───────────────────────────────────────────────
 function load(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || {}; }
-  catch (e) { return {}; }
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch (e) { return {}; }
 }
+// Robust gegen beschädigte/fremde Daten: ein Eintrag ohne Text würde sonst
+// jede Ansicht zum Absturz bringen. Reiner Text wird repariert, Unbrauchbares
+// übersprungen (es enthält ohnehin keinen Text).
+function loadEntries() {
+  const out = {};
+  for (const [k, v] of Object.entries(load(STORE))) {
+    if (typeof v === 'string') out[k] = { text: v, edited: 0 };
+    else if (v && typeof v.text === 'string') out[k] = v;
+  }
+  return out;
+}
+function loadDrafts() {
+  const out = {};
+  for (const [k, v] of Object.entries(load(DRAFTS))) if (typeof v === 'string') out[k] = v;
+  return out;
+}
+// true = gespeichert. Bei false hat der Aufrufer den alten Stand wiederherzustellen.
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify(entries)); }
-  catch (e) { toast('Speichern fehlgeschlagen — Speicher voll?'); }
+  try { localStorage.setItem(STORE, JSON.stringify(entries)); return true; }
+  catch (e) { toast('Speichern fehlgeschlagen — Speicher voll? Nichts wurde verändert.'); return false; }
 }
 function saveDrafts() {
   try { localStorage.setItem(DRAFTS, JSON.stringify(drafts)); }
@@ -126,28 +145,38 @@ function holdFast() {
   const day = activeDate;
   const text = currentText(day).trim();
   const prev = entries[day];
+  if (!text && !prev) { toast('Noch leer — nichts festzuhalten'); return; }
+
+  if (text) entries[day] = { text, edited: Date.now() };
+  else delete entries[day];             // leeres Festhalten entfernt — mit Rückweg (unten)
+  if (!save()) {
+    // Nichts verloren: alter Stand zurück, der Entwurf bleibt gespeichert.
+    if (prev) entries[day] = prev; else delete entries[day];
+    return;
+  }
+  // Erst nach erfolgreichem Speichern ist der Entwurf überflüssig.
   delete drafts[day];
   saveDrafts();
+
   if (text) {
-    entries[day] = { text, edited: Date.now() };
-    save();
     requestPersist();
     toast('Festgehalten');
-  } else if (prev) {
-    // Leeres Festhalten entfernt den Eintrag — aber mit Rückweg.
-    delete entries[day];
-    save();
+  } else {
     toast('Eintrag entfernt', 'Rückgängig', () => {
+      // In den 5 s neu Festgehaltenes nicht überschreiben.
+      if (entries[day]) { toast('Inzwischen neu festgehalten — nichts geändert'); return; }
       entries[day] = prev;
-      save();
-      render();
+      if (!save()) { delete entries[day]; return; }
+      renderQuiet();
       toast('Wiederhergestellt');
     });
-  } else {
-    toast('Noch leer — nichts festzuhalten');
   }
-  render();
+  renderQuiet();
 }
+// Neu zeichnen, ohne das Textfeld zu fokussieren — nach dem Festhalten soll
+// am Handy nicht die Tastatur wieder aufspringen.
+let focusOnRender = true;
+function renderQuiet() { focusOnRender = false; try { render(); } finally { focusOnRender = true; } }
 function openWrite(day) {
   activeDate = day;
   greeting = day === todayKey() ? pick(GREETINGS) : 'Ein Tag, den du nachträgst.';
@@ -185,7 +214,8 @@ async function exportMarkdown() {
 function importMarkdown(md) {
   const { entries: found, invalid, duplicate } = parseMarkdown(md);
   if (!found.length) { toast('Keine Einträge in der Datei gefunden'); return; }
-  let added = 0, existing = 0, differing = 0;
+  const addedKeys = [];
+  let existing = 0, differing = 0;
   found.forEach(({ key, text }) => {
     if (entries[key]) {                                      // bestehende nie überschreiben
       existing++;
@@ -193,9 +223,13 @@ function importMarkdown(md) {
       return;
     }
     entries[key] = { text, edited: Date.now() };
-    added++;
+    addedKeys.push(key);
   });
-  if (added) save();
+  if (addedKeys.length && !save()) {                         // alles oder nichts
+    addedKeys.forEach(k => delete entries[k]);
+    return;
+  }
+  const added = addedKeys.length;
   const parts = [`${added} importiert`];
   if (existing) parts.push(`${existing} schon vorhanden` +
     (differing ? ` (${differing} abweichend — deine Fassung bleibt)` : ''));
@@ -267,8 +301,8 @@ function renderWrite() {
   ta.value = currentText(activeDate);   // per value, nicht per HTML — führende Zeilenumbrüche bleiben erhalten
   updateWriteMeta(ta.value);
   ta.addEventListener('input', () => { setDraft(activeDate, ta.value); updateWriteMeta(ta.value); });
-  // Cursor ans Ende — nur beim Öffnen, nicht beim Tippen
-  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  // Cursor ans Ende — nur beim Öffnen, nicht beim Tippen (und nicht nach dem Festhalten)
+  if (focusOnRender) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
   document.getElementById('save').onclick = holdFast;
   document.getElementById('day-prev').onclick = () => openWrite(addDays(activeDate, -1));
   const next = document.getElementById('day-next');
@@ -423,6 +457,7 @@ importInput.addEventListener('change', e => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => importMarkdown(String(reader.result));
+  reader.onerror = () => toast('Datei konnte nicht gelesen werden');
   reader.readAsText(file);
   importInput.value = '';
 });
