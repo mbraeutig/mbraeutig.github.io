@@ -7,7 +7,7 @@
 // Kernlogik (Tokens, Datum, Markdown-Format) liegt in core.js — DOM-frei und getestet.
 const {
   todayKey, addDays, dayHash, reflectPicks,
-  isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
+  isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, kouOf,
   tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
   backlinkIndex, threadKeys, appendRef,
 } = TsuzukiCore;
@@ -129,6 +129,12 @@ function firstLine(text) { return (text.split('\n').find(l => l.trim()) || '').t
 // Klartext für eine Zeile: Verweise lesbar („↩ 22. Nov. 2025“ statt ISO).
 function plainLine(text) {
   return tokenize(text).map(p => p.type === '↩' ? `↩ ${shortDate(p.value)}` : p.type === 'text' ? p.value : p.type + p.value).join('');
+}
+// Leise Zeile mit der alten Jahreszeit (七十二候): Kanji + deutscher Name,
+// die japanische Lesung als Tooltip.
+function kouLine(key) {
+  const k = kouOf(key);
+  return `<div class="kou" title="${esc(k.reading)}"><span class="kou-kanji" lang="ja">${esc(k.kanji)}</span>${esc(k.de)}</div>`;
 }
 function texts() { return Object.fromEntries(Object.entries(entries).map(([k, v]) => [k, v.text])); }
 let backlinks = {};   // { Tag: [Tage, die darauf verweisen] } — bei jedem render() neu abgeleitet
@@ -341,6 +347,7 @@ function renderWrite() {
       <span>${relativeDay(activeDate)}</span>
       <button class="date-nav" id="day-next" aria-label="Tag danach" ${isToday ? 'disabled' : ''}>›</button>
     </div>
+    ${kouLine(activeDate)}
     <div class="prompt">${esc(greeting)}</div>
     <textarea id="ta" aria-label="Eintrag" placeholder="Kaffee mit @Franzi #chillen …" spellcheck="true"></textarea>
     <div class="chip-row" id="chips"></div>
@@ -383,7 +390,8 @@ function renderReflect() {
 
   let html = '<div class="stack fade-in">';
   // Tagesstabil statt zufällig je Render — sonst wechselt der Satz beim Aufklappen.
-  html += `<div class="reflect-greeting">${REFLECT_GREETINGS[dayHash(tk) % REFLECT_GREETINGS.length]}</div>`;
+  html += `<div><div class="reflect-greeting">${REFLECT_GREETINGS[dayHash(tk) % REFLECT_GREETINGS.length]}</div>` +
+    `${kouLine(tk)}</div>`;
 
   // Zeitraum-Karten an ihren Tagen: Woche (So/Mo), Vormonat (1.–3.), Vorjahr (1.–7.1.).
   periodPicks(Object.keys(entries), tk).forEach(pp => { html += periodCard(pp); });

@@ -47,6 +47,10 @@
     display:inline-flex;align-items:center;justify-content:center;}
   .date-nav:first-child{margin-left:-15px;}
   .date-nav:disabled{opacity:.25;cursor:default;}
+  /* Mikro-Jahreszeit 七十二候 — leise, unter dem Datum bzw. der Begrüßung */
+  .kou{font-size:12.5px;line-height:1.4;color:var(--fade);font-style:italic;margin:-6px 0 18px;}
+  .stack .kou{margin:0;}
+  .kou-kanji{font-family:var(--mincho);font-style:normal;color:var(--ai-soft);letter-spacing:1px;margin-right:8px;}
   .prompt{font-size:21px;line-height:1.4;color:var(--ai);margin-bottom:20px;font-style:italic;}
   textarea{width:100%;min-height:200px;border:none;outline:none;background:transparent;resize:none;
     color:var(--ink);font-size:18px;line-height:1.7;font-family:var(--serif);caret-color:var(--ai);}

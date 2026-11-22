@@ -83,6 +83,100 @@
     return out;
   }
 
+  // ── Mikro-Jahreszeiten 七十二候 (Kō) ────────────────────────────
+  // Quelle: ja.wikipedia.org — „七十二候“ (Namen, Lesungen, Bedeutungen der
+  // 略本暦-Fassung) und „二十四節気“ (Anfangsdaten, japanisch 2026). Jeder der
+  // 24 Sonnenstände wird in drei Kō von „約5日“ geteilt: Beginn nach 0, 5, 10
+  // Tagen. Feste Näherung — die echten Grenzen schwanken je Jahr um ±1 Tag.
+  // Deutsche Namen: aus den japanischen Bedeutungen übersetzt.
+  const SEKKI = [
+    ['02-04', '立春', [['東風解凍', 'はるかぜこおりをとく', 'Der Ostwind löst das Eis'],
+      ['黄鶯睍睆', 'うぐいすなく', 'Die Buschsänger beginnen zu singen'],
+      ['魚上氷', 'うおこおりをいずる', 'Fische springen aus dem brechenden Eis']]],
+    ['02-19', '雨水', [['土脉潤起', 'つちのしょううるおいおこる', 'Regen macht die Erde feucht'],
+      ['霞始靆', 'かすみはじめてたなびく', 'Erste Dunstschleier ziehen auf'],
+      ['草木萌動', 'そうもくめばえいずる', 'Gräser und Bäume treiben aus']]],
+    ['03-05', '啓蟄', [['蟄虫啓戸', 'すごもりむしとをひらく', 'Die Insekten verlassen ihr Winterquartier'],
+      ['桃始笑', 'ももはじめてさく', 'Die Pfirsiche beginnen zu blühen'],
+      ['菜虫化蝶', 'なむしちょうとなる', 'Raupen werden zu Schmetterlingen']]],
+    ['03-20', '春分', [['雀始巣', 'すずめはじめてすくう', 'Die Spatzen beginnen zu nisten'],
+      ['桜始開', 'さくらはじめてひらく', 'Die Kirschen beginnen zu blühen'],
+      ['雷乃発声', 'かみなりすなわちこえをはっす', 'In der Ferne grollt Donner']]],
+    ['04-05', '清明', [['玄鳥至', 'つばめきたる', 'Die Schwalben kehren zurück'],
+      ['鴻雁北', 'こうがんきたへかえる', 'Die Wildgänse ziehen nach Norden'],
+      ['虹始見', 'にじはじめてあらわる', 'Nach dem Regen zeigen sich Regenbögen']]],
+    ['04-20', '穀雨', [['葭始生', 'あしはじめてしょうず', 'Das Schilf beginnt zu sprießen'],
+      ['霜止出苗', 'しもやんでなえいづる', 'Der Frost endet, die Reissetzlinge wachsen'],
+      ['牡丹華', 'ぼたんはなさく', 'Die Päonien blühen']]],
+    ['05-05', '立夏', [['蛙始鳴', 'かわずはじめてなく', 'Die Frösche beginnen zu quaken'],
+      ['蚯蚓出', 'みみずいづる', 'Die Regenwürmer kommen hervor'],
+      ['竹笋生', 'たけのこしょうず', 'Bambussprossen schießen hervor']]],
+    ['05-21', '小満', [['蚕起食桑', 'かいこおきてくわをはむ', 'Die Seidenraupen fressen Maulbeerblätter'],
+      ['紅花栄', 'べにばなさかう', 'Der Saflor blüht üppig'],
+      ['麦秋至', 'むぎのときいたる', 'Das Korn reift']]],
+    ['06-06', '芒種', [['螳螂生', 'かまきりしょうず', 'Die Gottesanbeterinnen schlüpfen'],
+      ['腐草為蛍', 'くされたるくさほたるとなる', 'Aus welkem Gras werden Glühwürmchen'],
+      ['梅子黄', 'うめのみきばむ', 'Die Ume-Früchte reifen gelb']]],
+    ['06-21', '夏至', [['乃東枯', 'なつかれくさかるる', 'Die Braunelle verwelkt'],
+      ['菖蒲華', 'あやめはなさく', 'Die Schwertlilien blühen'],
+      ['半夏生', 'はんげしょうず', 'Die Pinellie sprießt']]],
+    ['07-07', '小暑', [['温風至', 'あつかぜいたる', 'Warme Winde wehen'],
+      ['蓮始開', 'はすはじめてひらく', 'Die Lotosblüten öffnen sich'],
+      ['鷹乃学習', 'たかすなわちわざをなす', 'Junge Habichte lernen fliegen']]],
+    ['07-23', '大暑', [['桐始結花', 'きりはじめてはなをむすぶ', 'Der Blauglockenbaum setzt Knospen an'],
+      ['土潤溽暑', 'つちうるおうてむしあつし', 'Feuchte Erde, schwüle Hitze'],
+      ['大雨時行', 'たいうときどきにふる', 'Zuweilen fällt heftiger Regen']]],
+    ['08-07', '立秋', [['涼風至', 'すづかぜいたる', 'Kühle Winde kommen auf'],
+      ['寒蝉鳴', 'ひぐらしなく', 'Die Abendzikaden singen'],
+      ['蒙霧升降', 'ふかききりまとう', 'Dichter Nebel hüllt alles ein']]],
+    ['08-23', '処暑', [['綿柎開', 'わたのはなしべひらく', 'Die Baumwollkapseln öffnen sich'],
+      ['天地始粛', 'てんちはじめてさむし', 'Die Hitze lässt endlich nach'],
+      ['禾乃登', 'こくものすなわちみのる', 'Der Reis reift']]],
+    ['09-07', '白露', [['草露白', 'くさのつゆしろし', 'Weiß glänzt der Tau auf den Gräsern'],
+      ['鶺鴒鳴', 'せきれいなく', 'Die Bachstelzen rufen'],
+      ['玄鳥去', 'つばめさる', 'Die Schwalben ziehen fort']]],
+    ['09-23', '秋分', [['雷乃収声', 'かみなりすなわちこえをおさむ', 'Der Donner verstummt'],
+      ['蟄虫坏戸', 'むしかくれてとをふさぐ', 'Die Insekten verschließen ihre Erdlöcher'],
+      ['水始涸', 'みずはじめてかる', 'Die Felder werden trockengelegt']]],
+    ['10-08', '寒露', [['鴻雁来', 'こうがんきたる', 'Die Wildgänse kehren zurück'],
+      ['菊花開', 'きくのはなひらく', 'Die Chrysanthemen blühen'],
+      ['蟋蟀在戸', 'きりぎりすとにあり', 'Grillen zirpen an der Tür']]],
+    ['10-23', '霜降', [['霜始降', 'しもはじめてふる', 'Der erste Reif fällt'],
+      ['霎時施', 'こさめときどきふる', 'Leiser Nieselregen fällt'],
+      ['楓蔦黄', 'もみじつたきばむ', 'Ahorn und Efeu färben sich']]],
+    ['11-07', '立冬', [['山茶始開', 'つばきはじめてひらく', 'Die Kamelien beginnen zu blühen'],
+      ['地始凍', 'ちはじめてこおる', 'Die Erde beginnt zu frieren'],
+      ['金盞香', 'きんせんかさく', 'Die Narzissen blühen']]],
+    ['11-22', '小雪', [['虹蔵不見', 'にじかくれてみえず', 'Die Regenbögen verbergen sich'],
+      ['朔風払葉', 'きたかぜこのはをはらう', 'Der Nordwind fegt die Blätter fort'],
+      ['橘始黄', 'たちばなはじめてきばむ', 'Die Tachibana-Früchte werden gelb']]],
+    ['12-07', '大雪', [['閉塞成冬', 'そらさむくふゆとなる', 'Himmel und Erde verschließen sich, es wird Winter'],
+      ['熊蟄穴', 'くまあなにこもる', 'Die Bären ziehen sich in ihre Höhlen zurück'],
+      ['鱖魚群', 'さけのうおむらがる', 'Die Lachse ziehen in Schwärmen flussauf']]],
+    ['12-22', '冬至', [['乃東生', 'なつかれくさしょうず', 'Die Braunelle keimt'],
+      ['麋角解', 'おおしかのつのおつる', 'Die Hirsche werfen ihr Geweih ab'],
+      ['雪下出麦', 'ゆきわたりてむぎいづる', 'Unter dem Schnee keimt der Weizen']]],
+    ['01-05', '小寒', [['芹乃栄', 'せりすなわちさかう', 'Der Wasserfenchel gedeiht'],
+      ['水泉動', 'しみずあたたかをふくむ', 'Die gefrorenen Quellen regen sich'],
+      ['雉始雊', 'きじはじめてなく', 'Die Fasanen beginnen zu rufen']]],
+    ['01-20', '大寒', [['款冬華', 'ふきのはなさく', 'Die Pestwurz treibt Knospen'],
+      ['水沢腹堅', 'さわみずこおりつめる', 'Dickes Eis bedeckt die Bäche'],
+      ['鶏始乳', 'にわとりはじめてとやにつく', 'Die Hühner beginnen zu legen']]],
+  ];
+  // → [{ start: 'MM-TT', n: 1–72, sekki, kanji, reading, de }] nach Datum sortiert.
+  // Rechenjahr 2026 (kein Schaltjahr); der 29.02. fällt per Textvergleich richtig.
+  const KOU = SEKKI.flatMap(([md, sekki, kous], s) => kous.map(([kanji, reading, de], i) => ({
+    start: todayKey(new Date(2026, Number(md.slice(0, 2)) - 1, Number(md.slice(3)) + 5 * i)).slice(5),
+    n: s * 3 + i + 1, sekki, kanji, reading, de,
+  }))).sort((a, b) => a.start.localeCompare(b.start));
+  // Das Kō, in dem ein Tag liegt.
+  function kouOf(key) {
+    const md = key.slice(5);
+    let hit = KOU[KOU.length - 1];
+    for (const k of KOU) if (k.start <= md) hit = k;
+    return hit;
+  }
+
   // ── Rückblick: welche Einträge heute zurückkommen ─────────────
   const YEAR_WINDOW = 3;   // „Um diese Zeit“: ± Tage um den Jahrestag
   const MEMORY_MIN = 3;    // Erinnerungsweg erst ab so vielen früheren Einträgen
@@ -264,7 +358,7 @@
 
   const Core = {
     todayKey, addDays, isValidDay, dayNumber, sameDayYearsAgo, dayHash, reflectPicks,
-    isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
+    isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, KOU, kouOf,
     tokenize, extractTokens, entryHasToken, esc, backlinkIndex, threadKeys, appendRef,
     buildMarkdown, parseMarkdown,
   };
