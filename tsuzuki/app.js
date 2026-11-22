@@ -6,7 +6,8 @@
 
 // Kernlogik (Tokens, Datum, Markdown-Format) liegt in core.js — DOM-frei und getestet.
 const {
-  todayKey, addDays, tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
+  todayKey, addDays, dayHash, reflectPicks,
+  tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
 } = TsuzukiCore;
 
 const STORE = 'tsuzuki.entries.v1';
@@ -24,6 +25,7 @@ const EMPTY = [
   'Noch ist der Weg jung. Schreib, wann immer dir danach ist.',
   'Mit der Zeit füllt sich dieser Raum mit Vergangenem.',
 ];
+const TOKEN_LIMIT = 8;      // Menschen/Themen im Rückblick: so viele, dann „+ N weitere“
 
 // ── State ─────────────────────────────────────────────────────
 let entries = load(STORE);
@@ -33,6 +35,7 @@ let view = Object.keys(entries).length === 0 ? 'write' : 'reflect';
 let filter = null;          // {kind:'@'|'#', name}
 let activeDate = todayKey();// welcher Tag im Schreiben gerade offen ist
 let greeting = '';          // Impuls-Satz — wird nur beim Öffnen eines Tages gewählt
+let tokensExpanded = { '@': false, '#': false }; // „+ N weitere“ aufgeklappt?
 
 // ── Persistence ───────────────────────────────────────────────
 function load(key) {
@@ -72,8 +75,11 @@ function humanDate(key) {
     { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 function shortDate(key) {
+  // „21. Nov.“ — mit Jahr, sobald es nicht das laufende ist („21. Nov. 2025“).
   const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  const opts = { day: 'numeric', month: 'short' };
+  if (y !== new Date().getFullYear()) opts.year = 'numeric';
+  return new Date(y, m - 1, d).toLocaleDateString('de-DE', opts);
 }
 function relativeDay(key) {
   if (key === todayKey()) return 'heute';
@@ -98,24 +104,13 @@ function allTokens() {
     t.people.forEach(p => people[p] = (people[p] || 0) + 1);
     t.tags.forEach(g => tags[g] = (tags[g] || 0) + 1);
   });
-  const sort = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+  // Häufigste zuerst; bei Gleichstand alphabetisch — stabile Reihenfolge.
+  const sort = o => Object.entries(o).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de'));
   return { people: sort(people), tags: sort(tags) };
 }
-function reflectSections() {
-  const tk = todayKey();
-  const keys = Object.keys(entries).filter(k => k !== tk).sort().reverse();
-  const out = { yesterday: null, yearAgo: null, memory: null };
-  const yk = addDays(tk, -1);
-  if (entries[yk]) out.yesterday = Object.assign({ key: yk }, entries[yk]);
-  const [yy, mm, dd] = tk.split('-').map(Number);
-  const yak = todayKey(new Date(yy - 1, mm - 1, dd));
-  if (entries[yak]) out.yearAgo = Object.assign({ key: yak }, entries[yak]);
-  if (keys.length >= 3) {
-    const seed = Number(tk.replace(/-/g, ''));
-    const pick = keys[seed % keys.length];
-    out.memory = Object.assign({ key: pick }, entries[pick]);
-  }
-  return out;
+function yearLabel({ yearsAgo, exact }) {
+  const span = yearsAgo === 1 ? 'einem Jahr' : `${yearsAgo} Jahren`;
+  return exact ? `Vor ${span}` : `Um diese Zeit vor ${span}`;
 }
 function filteredEntries() {
   if (!filter) return [];
@@ -284,32 +279,25 @@ function updateWriteMeta(text) {
 }
 
 function renderReflect() {
-  const r = reflectSections();
-  const tok = allTokens();
-  const anyMemory = r.yesterday || r.yearAgo || r.memory;
-  const hasTokens = tok.people.length || tok.tags.length;
   const tk = todayKey();
+  const r = reflectPicks(Object.keys(entries), tk);
+  const tok = allTokens();
+  const anyMemory = r.last || r.years.length || r.memory;
+  const hasTokens = tok.people.length || tok.tags.length;
   const openDrafts = Object.keys(drafts).filter(k => k !== tk).sort().reverse();
 
   let html = '<div class="stack fade-in">';
-  html += `<div class="reflect-greeting">${pick(REFLECT_GREETINGS)}</div>`;
+  // Tagesstabil statt zufällig je Render — sonst wechselt der Satz beim Aufklappen.
+  html += `<div class="reflect-greeting">${REFLECT_GREETINGS[dayHash(tk) % REFLECT_GREETINGS.length]}</div>`;
 
-  if (hasTokens) {
-    if (tok.people.length) {
-      html += `<div><div class="token-group-label">Menschen</div><div class="token-wrap">` +
-        tok.people.map(([name, c]) => `<button class="tok-btn person" data-kind="@" data-name="${esc(name)}">@${esc(name)}<span class="tok-count">${c}</span></button>`).join('') +
-        `</div></div>`;
-    }
-    if (tok.tags.length) {
-      html += `<div><div class="token-group-label">Themen</div><div class="token-wrap">` +
-        tok.tags.map(([name, c]) => `<button class="tok-btn tag" data-kind="#" data-name="${esc(name)}">#${esc(name)}<span class="tok-count">${c}</span></button>`).join('') +
-        `</div></div>`;
-    }
-  }
+  // Erst die Erinnerungen — das Wiederlesen ist der Kern.
+  // Kein „vor N Tagen“ bei „Zuletzt“: Abstände klingen nach Streak-Vorwurf.
+  if (r.last) html += card(r.last === addDays(tk, -1) ? 'Gestern' : 'Zuletzt', r.last, shortDate(r.last));
+  r.years.forEach(y => { html += card(yearLabel(y), y.key, shortDate(y.key), true); });
+  if (r.memory) html += card('Erinnerungsweg', r.memory, humanDate(r.memory));
 
-  if (r.yesterday) html += card('Gestern', shortDate(r.yesterday.key), r.yesterday.text, true);
-  if (r.yearAgo) html += card('Vor einem Jahr', shortDate(r.yearAgo.key), r.yearAgo.text, true, true);
-  if (r.memory) html += card('Erinnerungsweg', humanDate(r.memory.key), r.memory.text, true);
+  // Dann Menschen & Themen — gekürzt, damit sie die Erinnerungen nie verdrängen.
+  html += tokenGroup('Menschen', '@', tok.people) + tokenGroup('Themen', '#', tok.tags);
 
   if (!anyMemory && !hasTokens) {
     html += `<div class="empty"><div class="empty-mark">空</div><p class="empty-text">${Object.keys(entries).length === 0 ? EMPTY[0] : EMPTY[1]}</p></div>`;
@@ -334,16 +322,31 @@ function renderReflect() {
     el.onclick = () => openToken(el.dataset.kind, el.dataset.name));
   main.querySelectorAll('[data-draft]').forEach(el =>
     el.onclick = () => openWrite(el.dataset.draft));
+  main.querySelectorAll('[data-more]').forEach(el =>
+    el.onclick = () => { tokensExpanded[el.dataset.more] = !tokensExpanded[el.dataset.more]; renderReflect(); });
   document.getElementById('go-write').onclick = () => openWrite(todayKey());
 }
 
-function card(label, sub, text, withAccentLabel, accentBorder) {
-  return `<div class="card${accentBorder ? ' accent' : ''}">
+function tokenGroup(label, kind, list) {
+  if (!list.length) return '';
+  const cls = kind === '@' ? 'person' : 'tag';
+  const open = tokensExpanded[kind];
+  const visible = open ? list : list.slice(0, TOKEN_LIMIT);
+  const hidden = list.length - visible.length;
+  const toggle = list.length > TOKEN_LIMIT
+    ? `<button class="tok-more" data-more="${kind}">${open ? 'weniger' : `+ ${hidden} weitere`}</button>` : '';
+  return `<div><div class="token-group-label">${label}</div><div class="token-wrap">` +
+    visible.map(([name, c]) => `<button class="tok-btn ${cls}" data-kind="${kind}" data-name="${esc(name)}">${kind}${esc(name)}<span class="tok-count">${c}</span></button>`).join('') +
+    toggle + `</div></div>`;
+}
+
+function card(label, key, sub, accent) {
+  return `<div class="card${accent ? ' accent' : ''}" data-day="${esc(key)}">
     <div class="card-head">
-      <span class="card-label${accentBorder ? ' accent' : ''}">${label}</span>
-      <span class="card-sub">${sub}</span>
+      <span class="card-label${accent ? ' accent' : ''}">${label}</span>
+      <span class="card-sub">${esc(sub)}</span>
     </div>
-    <p class="card-body">${richText(text)}</p>
+    <p class="card-body">${richText(entries[key].text)}</p>
   </div>`;
 }
 

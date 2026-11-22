@@ -20,6 +20,59 @@
     // 2026-02-30 würde von Date still zu 2026-03-02 — das gilt nicht.
     return /^\d{4}-\d{2}-\d{2}$/.test(key) && addDays(key, 0) === key;
   }
+  // Fortlaufende Tagesnummer (UTC, ohne Sommerzeit-Sprünge) — für Abstände.
+  function dayNumber(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    return Math.round(Date.UTC(y, m - 1, d) / 86400000);
+  }
+  // Derselbe Kalendertag n Jahre früher; 29.02. → 28.02. in Nicht-Schaltjahren.
+  function sameDayYearsAgo(key, n) {
+    const [y, m, d] = key.split('-').map(Number);
+    const lastDay = new Date(y - n, m, 0).getDate();
+    return todayKey(new Date(y - n, m - 1, Math.min(d, lastDay)));
+  }
+
+  // ── Rückblick: welche Einträge heute zurückkommen ─────────────
+  const YEAR_WINDOW = 3;   // „Um diese Zeit“: ± Tage um den Jahrestag
+  const MEMORY_MIN = 3;    // Erinnerungsweg erst ab so vielen früheren Einträgen
+
+  // FNV-1a — gleichmäßig verteilter, aber stabiler Zufall pro Tag.
+  function dayHash(s) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return h >>> 0;
+  }
+
+  // keys: alle Eintragstage · today: JJJJ-MM-TT
+  // → { last, years: [{key, yearsAgo, exact}], memory } — nie ein Tag doppelt.
+  function reflectPicks(keys, today) {
+    const past = keys.filter(k => k < today).sort();
+    const out = { last: null, years: [], memory: null };
+    if (!past.length) return out;
+    const shown = new Set();
+
+    // 1 · Jahrestage: pro früherem Jahr der nächstgelegene Eintrag im Fenster.
+    const oldest = dayNumber(past[0]);
+    for (let n = 1; ; n++) {
+      const target = dayNumber(sameDayYearsAgo(today, n));
+      if (target + YEAR_WINDOW < oldest) break;
+      let best = null, bestDist = Infinity;
+      for (const k of past) {
+        const dist = Math.abs(dayNumber(k) - target);
+        if (dist <= YEAR_WINDOW && dist < bestDist && !shown.has(k)) { best = k; bestDist = dist; }
+      }
+      if (best) { out.years.push({ key: best, yearsAgo: n, exact: bestDist === 0 }); shown.add(best); }
+    }
+
+    // 2 · Zuletzt: der jüngste frühere Eintrag — außer er ist schon ein Jahrestag.
+    const latest = past[past.length - 1];
+    if (!shown.has(latest)) { out.last = latest; shown.add(latest); }
+
+    // 3 · Erinnerungsweg: tagesstabil zufällig aus dem Rest.
+    const rest = past.filter(k => !shown.has(k));
+    if (past.length >= MEMORY_MIN && rest.length) out.memory = rest[dayHash(today) % rest.length];
+    return out;
+  }
 
   // ── @Personen / #Themen ───────────────────────────────────────
   // · Unicode-Buchstaben aller Schriften (@Łukasz, @田中, #café, auch NFD-Umlaute)
@@ -111,7 +164,7 @@
   }
 
   const Core = {
-    todayKey, addDays, isValidDay,
+    todayKey, addDays, isValidDay, dayNumber, sameDayYearsAgo, dayHash, reflectPicks,
     tokenize, extractTokens, entryHasToken, esc,
     buildMarkdown, parseMarkdown,
   };
