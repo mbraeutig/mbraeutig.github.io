@@ -7,6 +7,7 @@
 // Kernlogik (Tokens, Datum, Markdown-Format) liegt in core.js — DOM-frei und getestet.
 const {
   todayKey, addDays, dayHash, reflectPicks,
+  isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
   tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
 } = TsuzukiCore;
 
@@ -17,6 +18,8 @@ const GREETINGS = [
   'Was trägst du heute?', 'Ein Gedanke genügt.', 'Wie war dieser Tag wirklich?',
   'Halte fest, was bleibt.', 'Nichts muss perfekt sein.', 'Erzähl es deinem späteren Ich.',
 ];
+// Sonntags ersetzt er den wechselnden Satz — der Sonntagseintrag ist der Wochenrückblick.
+const SUNDAY_GREETING = 'Was bleibt von dieser Woche?';
 const REFLECT_GREETINGS = [
   'Bevor du schreibst — ein Blick zurück.', 'Wo du warst.', 'Was war.',
 ];
@@ -104,6 +107,22 @@ function relativeDay(key) {
   if (key === addDays(todayKey(), -1)) return 'gestern';
   return humanDate(key);
 }
+function fmtDay(key, opts) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('de-DE', opts);
+}
+function weekdayShort(key) { return fmtDay(key, { weekday: 'short' }).replace('.', ''); }
+function monthName(key) { return fmtDay(key, { month: 'long' }); }
+// „16.–22. Nov. 2026“ · „30. Nov. – 6. Dez. 2026“ · „November 2026“ · „2026“
+function periodLabel(p) {
+  if (p.unit === 'year') return p.from.slice(0, 4);
+  if (p.unit === 'month') return fmtDay(p.from, { month: 'long', year: 'numeric' });
+  const end = fmtDay(p.to, { day: 'numeric', month: 'short', year: 'numeric' });
+  return p.from.slice(0, 7) === p.to.slice(0, 7)
+    ? `${Number(p.from.slice(8))}.–${end}`
+    : `${fmtDay(p.from, { day: 'numeric', month: 'short' })} – ${end}`;
+}
+function firstLine(text) { return (text.split('\n').find(l => l.trim()) || '').trim(); }
 
 // ── Tokens im Text ────────────────────────────────────────────
 function richText(text) {
@@ -133,6 +152,10 @@ function yearLabel({ yearsAgo, exact }) {
 }
 function filteredEntries() {
   if (!filter) return [];
+  // Zeitraum: chronologisch, damit sich Woche/Monat/Jahr wie eine Erzählung liest.
+  if (filter.kind === 'period') {
+    return keysInPeriod(Object.keys(entries), filter).map(k => Object.assign({ key: k }, entries[k]));
+  }
   // Exakt wie in der Übersicht gezählt — @Franz trifft nicht @Franzi.
   return Object.keys(entries)
     .filter(k => entryHasToken(entries[k].text, filter.kind, filter.name))
@@ -177,13 +200,18 @@ function holdFast() {
 // am Handy nicht die Tastatur wieder aufspringen.
 let focusOnRender = true;
 function renderQuiet() { focusOnRender = false; try { render(); } finally { focusOnRender = true; } }
+function writeGreeting(day) {
+  if (day !== todayKey()) return 'Ein Tag, den du nachträgst.';
+  return isoWeekday(day) === 7 ? SUNDAY_GREETING : pick(GREETINGS);
+}
 function openWrite(day) {
   activeDate = day;
-  greeting = day === todayKey() ? pick(GREETINGS) : 'Ein Tag, den du nachträgst.';
+  greeting = writeGreeting(day);
   view = 'write';
   render();
 }
 function openToken(kind, name) { filter = { kind, name }; view = 'filter'; render(); }
+function openPeriod(p) { filter = { kind: 'period', unit: p.unit, from: p.from, to: p.to }; view = 'filter'; render(); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // ── Export / Import ───────────────────────────────────────────
@@ -277,7 +305,7 @@ function render() {
 
 function renderWrite() {
   const isToday = activeDate === todayKey();
-  if (!greeting) greeting = isToday ? pick(GREETINGS) : 'Ein Tag, den du nachträgst.';
+  if (!greeting) greeting = writeGreeting(activeDate);
 
   // Das Gerüst wird einmal pro Tag/Ansicht gebaut — beim Tippen nie neu
   // (sonst springt der Cursor, die Tastatur-Komposition bricht ab, Undo geht verloren).
@@ -331,6 +359,9 @@ function renderReflect() {
   // Tagesstabil statt zufällig je Render — sonst wechselt der Satz beim Aufklappen.
   html += `<div class="reflect-greeting">${REFLECT_GREETINGS[dayHash(tk) % REFLECT_GREETINGS.length]}</div>`;
 
+  // Zeitraum-Karten an ihren Tagen: Woche (So/Mo), Vormonat (1.–3.), Vorjahr (1.–7.1.).
+  periodPicks(Object.keys(entries), tk).forEach(pp => { html += periodCard(pp); });
+
   // Erst die Erinnerungen — das Wiederlesen ist der Kern.
   // Kein „vor N Tagen“ bei „Zuletzt“: Abstände klingen nach Streak-Vorwurf.
   if (r.last) html += card(r.last === addDays(tk, -1) ? 'Gestern' : 'Zuletzt', r.last, shortDate(r.last));
@@ -365,7 +396,60 @@ function renderReflect() {
     el.onclick = () => openWrite(el.dataset.draft));
   main.querySelectorAll('[data-more]').forEach(el =>
     el.onclick = () => { tokensExpanded[el.dataset.more] = !tokensExpanded[el.dataset.more]; renderReflect(); });
+  bindPeriodLinks();
   document.getElementById('go-write').onclick = () => openWrite(todayKey());
+}
+
+// Kartendatum → Monat, „… wiederlesen“ → Zeitraum. Werte: „unit|from“.
+function bindPeriodLinks() {
+  main.querySelectorAll('[data-month]').forEach(el =>
+    el.onclick = () => openPeriod(periodOf('month', el.dataset.month)));
+  main.querySelectorAll('[data-open-period]').forEach(el => {
+    const [unit, from] = el.dataset.openPeriod.split('|');
+    el.onclick = () => openPeriod(periodOf(unit, from));
+  });
+}
+
+// Menschen & Themen eines Zeitraums — als Namen, ohne Zahlen.
+function periodTokens(keys) {
+  const count = { '@': {}, '#': {} };
+  keys.forEach(k => {
+    const t = extractTokens(entries[k].text);
+    t.people.forEach(n => { count['@'][n] = (count['@'][n] || 0) + 1; });
+    t.tags.forEach(n => { count['#'][n] = (count['#'][n] || 0) + 1; });
+  });
+  const sorted = kind => Object.entries(count[kind])
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de')).slice(0, TOKEN_LIMIT)
+    .map(([name]) => `<button class="tok-btn ${kind === '@' ? 'person' : 'tag'}" data-kind="${kind}" data-name="${esc(name)}">${kind}${esc(name)}</button>`);
+  return [...sorted('@'), ...sorted('#')].join('');
+}
+
+function periodCard(pp) {
+  const link = `data-open-period="${pp.unit}|${pp.from}"`;
+  if (pp.unit === 'week') {
+    // Nur beschriebene Tage, je eine Zeile — kein „4 von 7“, keine leeren Kästchen.
+    const lines = pp.keys.map(k =>
+      `<li><span class="wk-day">${weekdayShort(k)}</span><span class="wk-line">${esc(firstLine(entries[k].text))}</span></li>`).join('');
+    const chips = periodTokens(pp.keys);
+    return `<div class="card period" data-week="${pp.from}">
+      <div class="card-head">
+        <span class="card-label">${pp.which === 'thisWeek' ? 'Diese Woche' : 'Letzte Woche'}</span>
+        <span class="card-sub">${esc(periodLabel(pp))}</span>
+      </div>
+      <ul class="wk-lines">${lines}</ul>
+      ${chips ? `<div class="token-wrap wk-tokens">${chips}</div>` : ''}
+      <button class="period-open" ${link}>Die ganze Woche lesen ›</button>
+    </div>`;
+  }
+  const isMonth = pp.unit === 'month';
+  const name = isMonth ? monthName(pp.from) : pp.from.slice(0, 4);
+  return `<div class="card period">
+    <div class="card-head">
+      <span class="card-label">${isMonth ? `Der ${esc(name)}` : `Dein ${name}`}</span>
+      <span class="card-sub">${esc(periodLabel(pp))}</span>
+    </div>
+    <button class="period-open" ${link}>${isMonth ? `Den ${esc(name)} wiederlesen ›` : 'Das Jahr wiederlesen ›'}</button>
+  </div>`;
 }
 
 function tokenGroup(label, kind, list) {
@@ -376,16 +460,21 @@ function tokenGroup(label, kind, list) {
   const hidden = list.length - visible.length;
   const toggle = list.length > TOKEN_LIMIT
     ? `<button class="tok-more" data-more="${kind}">${open ? 'weniger' : `+ ${hidden} weitere`}</button>` : '';
-  return `<div><div class="token-group-label">${label}</div><div class="token-wrap">` +
+  return `<div class="token-group"><div class="token-group-label">${label}</div><div class="token-wrap">` +
     visible.map(([name, c]) => `<button class="tok-btn ${cls}" data-kind="${kind}" data-name="${esc(name)}">${kind}${esc(name)}<span class="tok-count">${c}</span></button>`).join('') +
     toggle + `</div></div>`;
+}
+
+// Das Datum einer Karte öffnet ihren Monat (Zeitraum-Liste).
+function dateLink(key, text) {
+  return `<button class="card-sub card-date" data-month="${esc(key)}" aria-label="${esc(monthName(key))} wiederlesen">${esc(text)}</button>`;
 }
 
 function card(label, key, sub, accent) {
   return `<div class="card${accent ? ' accent' : ''}" data-day="${esc(key)}">
     <div class="card-head">
       <span class="card-label${accent ? ' accent' : ''}">${label}</span>
-      <span class="card-sub">${esc(sub)}</span>
+      ${dateLink(key, sub)}
     </div>
     <p class="card-body">${richText(entries[key].text)}</p>
   </div>`;
@@ -393,13 +482,29 @@ function card(label, key, sub, accent) {
 
 function renderFilter() {
   const list = filteredEntries();
-  const cls = filter.kind === '@' ? 'c-person' : 'c-tag';
+  const isPeriod = filter.kind === 'period';
   let html = '<div class="stack fade-in">';
   html += `<button class="back-btn" id="back">‹ zurück</button>`;
-  html += `<div class="filter-head"><span class="filter-token ${cls}">${esc(filter.kind + filter.name)}</span>` +
-    `<span class="card-sub">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>`;
+  if (isPeriod) {
+    // Blättern statt Kalender-Raster; nicht über heute hinaus. Ohne Zählung —
+    // eine Woche ist kein „3 von 7“.
+    const next = shiftPeriod(filter, 1);
+    html += `<div class="filter-head"><div class="period-nav">` +
+      `<button class="date-nav" data-shift="-1" aria-label="Zeitraum davor">‹</button>` +
+      `<span class="filter-period">${esc(periodLabel(filter))}</span>` +
+      `<button class="date-nav" data-shift="1" aria-label="Zeitraum danach" ${next.from > todayKey() ? 'disabled' : ''}>›</button>` +
+      `</div></div>`;
+    if (!list.length) html += `<p class="empty-text">Hier ist es still.</p>`;
+  } else {
+    const cls = filter.kind === '@' ? 'c-person' : 'c-tag';
+    html += `<div class="filter-head"><span class="filter-token ${cls}">${esc(filter.kind + filter.name)}</span>` +
+      `<span class="card-sub">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>`;
+  }
+  // Im Monat selbst führt das Datum nirgendwohin Neues — dort bleibt es Text.
+  const linkDates = !(isPeriod && filter.unit === 'month');
   list.forEach(e => {
-    html += `<div class="card"><div class="card-head"><span class="card-sub">${humanDate(e.key)}</span></div>` +
+    const date = linkDates ? dateLink(e.key, humanDate(e.key)) : `<span class="card-sub">${humanDate(e.key)}</span>`;
+    html += `<div class="card" data-day="${esc(e.key)}"><div class="card-head">${date}</div>` +
       `<p class="card-body">${richText(e.text)}</p></div>`;
   });
   html += '</div>';
@@ -408,6 +513,10 @@ function renderFilter() {
   document.getElementById('back').onclick = () => { view = 'reflect'; render(); };
   main.querySelectorAll('[data-kind]').forEach(el =>
     el.onclick = () => openToken(el.dataset.kind, el.dataset.name));
+  main.querySelectorAll('[data-shift]').forEach(el => {
+    if (!el.disabled) el.onclick = () => openPeriod(shiftPeriod(filter, Number(el.dataset.shift)));
+  });
+  bindPeriodLinks();
 }
 
 function renderNav() {

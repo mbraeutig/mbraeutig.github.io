@@ -32,6 +32,57 @@
     return todayKey(new Date(y - n, m - 1, Math.min(d, lastDay)));
   }
 
+  // ── Zeiträume: Woche (Mo–So) · Monat · Jahr ───────────────────
+  // Ein Zeitraum ist { unit: 'week'|'month'|'year', from, to } (beide inklusive).
+  const pad2 = n => String(n).padStart(2, '0');
+  // Wochentag nach ISO: Mo = 1 … So = 7.
+  function isoWeekday(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay() || 7;
+  }
+  function periodOf(unit, key) {
+    const [y, m] = key.split('-').map(Number);
+    if (unit === 'week') {
+      const from = addDays(key, 1 - isoWeekday(key));       // Woche beginnt Montag
+      return { unit, from, to: addDays(from, 6) };
+    }
+    if (unit === 'month') {
+      const last = new Date(y, m, 0).getDate();
+      return { unit, from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${pad2(last)}` };
+    }
+    return { unit: 'year', from: `${y}-01-01`, to: `${y}-12-31` };
+  }
+  // Nachbarzeitraum: n = -1 davor, +1 danach.
+  function shiftPeriod(p, n) {
+    const [y, m] = p.from.split('-').map(Number);
+    if (p.unit === 'week') return periodOf('week', addDays(p.from, 7 * n));
+    if (p.unit === 'month') return periodOf('month', todayKey(new Date(y, m - 1 + n, 1)));
+    return periodOf('year', `${y + n}-01-01`);
+  }
+  function keysInPeriod(keys, p) {
+    return keys.filter(k => isValidDay(k) && k >= p.from && k <= p.to).sort();
+  }
+
+  // Zeitraum-Karten im Rückblick — nur an ihren Tagen und nur mit Einträgen:
+  //  · Sonntag:          „Diese Woche“ (Mo–Sa, heute nicht — darüber schreibt man gerade)
+  //  · Montag:           „Letzte Woche“ (Mo–So)
+  //  · 1.–3. des Monats: der Vormonat
+  //  · 1.–7. Januar:     das Vorjahr
+  // → [{ which, unit, from, to, keys }]
+  function periodPicks(keys, today) {
+    const out = [];
+    const add = (which, p) => {
+      const ks = keysInPeriod(keys, p).filter(k => k < today);
+      if (ks.length) out.push({ which, ...p, keys: ks });
+    };
+    const wd = isoWeekday(today), day = Number(today.slice(8)), month = Number(today.slice(5, 7));
+    if (wd === 7) add('thisWeek', periodOf('week', today));
+    if (wd === 1) add('lastWeek', periodOf('week', addDays(today, -1)));
+    if (day <= 3) add('lastMonth', periodOf('month', addDays(`${today.slice(0, 8)}01`, -1)));
+    if (month === 1 && day <= 7) add('lastYear', periodOf('year', `${Number(today.slice(0, 4)) - 1}-01-01`));
+    return out;
+  }
+
   // ── Rückblick: welche Einträge heute zurückkommen ─────────────
   const YEAR_WINDOW = 3;   // „Um diese Zeit“: ± Tage um den Jahrestag
   const MEMORY_MIN = 3;    // Erinnerungsweg erst ab so vielen früheren Einträgen
@@ -175,6 +226,7 @@
 
   const Core = {
     todayKey, addDays, isValidDay, dayNumber, sameDayYearsAgo, dayHash, reflectPicks,
+    isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks,
     tokenize, extractTokens, entryHasToken, esc,
     buildMarkdown, parseMarkdown,
   };

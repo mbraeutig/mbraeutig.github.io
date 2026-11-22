@@ -89,6 +89,18 @@
   .tok{cursor:pointer;font-weight:600;padding:6px 3px;margin:0 -3px;border-radius:2px;}
   .tok.person,.c-person{color:var(--ai);}
   .tok.tag,.c-tag{color:var(--tag);}
+  /* Kartendatum als Link zum Monat — sieht aus wie Text, größere Tippfläche */
+  .card-date{background:none;border:none;cursor:pointer;padding:8px 0;margin:-8px 0;}
+  /* Zeitraum-Karten (Woche/Monat/Jahr) und Zeitraum-Liste */
+  .wk-lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .wk-lines li{display:flex;gap:10px;align-items:baseline;font-size:15px;line-height:1.5;color:#2e2c29;min-width:0;}
+  .wk-day{font-family:var(--mono);font-size:11px;color:var(--fade);width:22px;flex-shrink:0;}
+  .wk-line{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  .wk-tokens{margin:14px 0 0;}
+  .period-open{background:none;border:none;padding:0;margin-top:6px;min-height:44px;color:var(--ai);
+    font-family:var(--serif);font-style:italic;font-size:14.5px;cursor:pointer;}
+  .period-nav{display:flex;align-items:center;gap:10px;}
+  .filter-period{font-size:16px;font-weight:600;}
   .cta-write{background:none;border:1px solid var(--paper-deep);border-radius:3px;padding:14px;
     width:100%;color:var(--ai);font-size:15px;font-family:var(--serif);cursor:pointer;font-style:italic;}
 
