@@ -398,8 +398,9 @@ function renderReflect() {
 
   // Erst die Erinnerungen — das Wiederlesen ist der Kern.
   // Kein „vor N Tagen“ bei „Zuletzt“: Abstände klingen nach Streak-Vorwurf.
-  if (r.last) html += card(r.last === addDays(tk, -1) ? 'Gestern' : 'Zuletzt', r.last, shortDate(r.last));
-  r.years.forEach(y => { html += card(yearLabel(y), y.key, shortDate(y.key), true); });
+  // „weiterschreiben ›“ nur unter Zuletzt und den Jahres-Karten.
+  if (r.last) html += card(r.last === addDays(tk, -1) ? 'Gestern' : 'Zuletzt', r.last, shortDate(r.last), false, true);
+  r.years.forEach(y => { html += card(yearLabel(y), y.key, shortDate(y.key), true, true); });
   if (r.memory) html += card('Erinnerungsweg', r.memory, humanDate(r.memory));
 
   // Dann Menschen & Themen — gekürzt, damit sie die Erinnerungen nie verdrängen.
@@ -509,25 +510,28 @@ function dateLink(key, text) {
   return `<button class="card-sub card-date" data-month="${esc(key)}" aria-label="${esc(monthName(key))} wiederlesen">${esc(text)}</button>`;
 }
 
-// Fuß einer früheren Karte: „fortgesetzt am …“ (abgeleitet) und „weiterschreiben ›“.
-function cardFoot(key, { showContinued = true } = {}) {
+// Fuß einer früheren Karte: „fortgesetzt am …“ (abgeleitet) und — nur wo
+// gewünscht (Zuletzt, Jahres-Karten) — „weiterschreiben ›“. Unter jeder Karte
+// wiederholt, wirkte es gleichförmig.
+function cardFoot(key, { showContinued = true, offerWrite = false } = {}) {
   const conts = showContinued ? (backlinks[key] || []) : [];
   const recent = conts.slice(-2).map(shortDate).join(' und ');
   const cont = conts.length
     ? `<button class="card-link cont" data-thread="${esc(key)}">fortgesetzt am ${esc(recent)}${conts.length > 2 ? ' u. a.' : ''}</button>`
     : '';
-  const write = key < todayKey() ? `<button class="card-link write-on" data-continue="${esc(key)}">weiterschreiben ›</button>` : '';
+  const write = offerWrite && key < todayKey()
+    ? `<button class="card-link write-on" data-continue="${esc(key)}">weiterschreiben ›</button>` : '';
   return cont || write ? `<div class="card-foot">${cont}${write}</div>` : '';
 }
 
-function card(label, key, sub, accent) {
+function card(label, key, sub, accent, offerWrite) {
   return `<div class="card${accent ? ' accent' : ''}" data-day="${esc(key)}">
     <div class="card-head">
       <span class="card-label${accent ? ' accent' : ''}">${label}</span>
       ${dateLink(key, sub)}
     </div>
     <p class="card-body">${richText(entries[key].text)}</p>
-    ${cardFoot(key)}
+    ${cardFoot(key, { offerWrite })}
   </div>`;
 }
 

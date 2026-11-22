@@ -1,7 +1,7 @@
 // Tsuzuki Service Worker — Offline-First, schlicht.
 // CACHE wird von deploy.js bei jedem Deploy neu gestempelt. Ohne neuen Namen
 // bekämen installierte Apps nie neuen Code (Cache-First).
-const CACHE = 'tsuzuki-20261122-113520';
+const CACHE = 'tsuzuki-20261122-113823';
 const ASSETS = [
   'index.html', 'core.js', 'app.js', 'manifest.webmanifest',
   'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png'
