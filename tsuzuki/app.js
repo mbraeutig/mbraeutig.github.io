@@ -7,7 +7,7 @@
 // Kernlogik (Tokens, Datum, Markdown-Format) liegt in core.js — DOM-frei und getestet.
 const {
   todayKey, addDays, dayHash, reflectPicks,
-  isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, kouOf,
+  isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, kouOf, seasonOf,
   tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
   backlinkIndex, threadKeys, appendRef,
 } = TsuzukiCore;
@@ -597,6 +597,43 @@ function renderNav() {
   document.getElementById('nav-export').onclick = exportMarkdown;
   document.getElementById('nav-import').onclick = () => importInput.click();
 }
+
+// ── Ein Hauch der Jahreszeit (Tipp auf „Tsuzuki“) ─────────────
+// Ensō um 続, ein Dutzend Elemente der aktuellen Jahreszeit (七十二候) und
+// „Tsuzuki“ blendet kurz zu „Fortsetzung“. Nach ~6 s ist alles fort. Kein
+// Zähler, nichts zu sammeln — nur ein Augenblick. Bewegung reduziert → nur
+// Überblendungen, keine fliegenden Elemente.
+const BREATH_MS = 6500;
+const brandEl = document.getElementById('brand');
+let breathing = false;
+function seasonBreath() {
+  if (breathing) return;
+  breathing = true;
+  const season = seasonOf(todayKey());
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const layer = document.createElement('div');
+  layer.className = `breath ${season}`;
+  layer.setAttribute('aria-hidden', 'true');
+  if (!still) {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    for (let i = 0; i < 14; i++) {
+      const p = document.createElement('i');
+      const s = season === 'summer' ? rnd(4, 6) : season === 'winter' ? rnd(4, 8) : rnd(8, 13);
+      p.style.setProperty('--x', `${rnd(2, 96).toFixed(1)}%`);
+      p.style.setProperty('--s', `${s.toFixed(1)}px`);
+      p.style.setProperty('--d', `${rnd(0, 1.6).toFixed(2)}s`);
+      p.style.setProperty('--dur', `${rnd(3.6, 4.8).toFixed(2)}s`);
+      p.style.setProperty('--drift', `${rnd(-60, 60).toFixed(0)}px`);
+      p.style.setProperty('--rot', `${rnd(-300, 300).toFixed(0)}deg`);
+      layer.appendChild(p);
+    }
+  }
+  document.body.appendChild(layer);
+  brandEl.classList.add('breathing', 'meaning');
+  setTimeout(() => brandEl.classList.remove('meaning'), 3200);
+  setTimeout(() => { layer.remove(); brandEl.classList.remove('breathing'); breathing = false; }, BREATH_MS);
+}
+brandEl.addEventListener('click', seasonBreath);
 
 // Tokens im Text sind <span role="button"> — Enter/Leertaste wie ein Klick.
 main.addEventListener('keydown', e => {

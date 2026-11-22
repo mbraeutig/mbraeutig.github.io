@@ -176,6 +176,12 @@
     for (const k of KOU) if (k.start <= md) hit = k;
     return hit;
   }
+  // Japanische Jahreszeit nach dem alten Kalender: sie beginnt mit 立春 (Kō 1),
+  // 立夏 (19), 立秋 (37), 立冬 (55).
+  function seasonOf(key) {
+    const n = kouOf(key).n;
+    return n <= 18 ? 'spring' : n <= 36 ? 'summer' : n <= 54 ? 'autumn' : 'winter';
+  }
 
   // ── Rückblick: welche Einträge heute zurückkommen ─────────────
   const YEAR_WINDOW = 3;   // „Um diese Zeit“: ± Tage um den Jahrestag
@@ -358,7 +364,7 @@
 
   const Core = {
     todayKey, addDays, isValidDay, dayNumber, sameDayYearsAgo, dayHash, reflectPicks,
-    isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, KOU, kouOf,
+    isoWeekday, periodOf, shiftPeriod, keysInPeriod, periodPicks, KOU, kouOf, seasonOf,
     tokenize, extractTokens, entryHasToken, esc, backlinkIndex, threadKeys, appendRef,
     buildMarkdown, parseMarkdown,
   };

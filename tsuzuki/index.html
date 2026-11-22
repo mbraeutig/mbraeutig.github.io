@@ -28,9 +28,41 @@
     padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
   header{display:flex;justify-content:space-between;align-items:center;
     padding:18px 22px 10px;border-bottom:1px solid var(--paper-deep);}
-  .brand{display:flex;align-items:baseline;gap:9px;}
-  .mark{font-size:22px;color:var(--ai);font-weight:600;font-family:var(--mincho);}
-  .brand-text{font-size:17px;letter-spacing:1.5px;font-weight:600;}
+  .brand{display:flex;align-items:baseline;gap:9px;background:none;border:none;padding:4px 0;margin:-4px 0;
+    color:inherit;font:inherit;cursor:pointer;text-align:left;}
+  .mark{font-size:22px;color:var(--ai);font-weight:600;font-family:var(--mincho);position:relative;}
+  .brand-text{font-size:17px;letter-spacing:1.5px;font-weight:600;display:inline-grid;}
+  .brand-text > span{grid-area:1/1;transition:opacity .7s ease;}
+  .bt-alt{opacity:0;font-weight:400;font-style:italic;letter-spacing:.5px;}
+  .brand.meaning .bt-main{opacity:0;}
+  .brand.meaning .bt-alt{opacity:1;}
+
+  /* ── Ein Hauch der Jahreszeit (Tipp auf „Tsuzuki“) ──────────────
+     Ensō: ein offener Pinselkreis um 続 — Unvollkommenheit als Form (Wabi-Sabi). */
+  .enso{position:absolute;left:50%;top:52%;width:44px;height:44px;transform:translate(-50%,-50%) rotate(-8deg);
+    fill:none;stroke:var(--ink);stroke-width:4.5;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;
+    opacity:0;pointer-events:none;overflow:visible;}
+  .brand.breathing .enso{animation:enso 3.2s ease-out forwards;}
+  @keyframes enso{0%{opacity:.8;stroke-dashoffset:100}40%{opacity:.8;stroke-dashoffset:0}
+    75%{opacity:.8;stroke-dashoffset:0}100%{opacity:0;stroke-dashoffset:0}}
+  /* Jahreszeit: ein Dutzend leise Elemente, nach ~6 s wieder fort */
+  .breath{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:5;}
+  .breath i{position:absolute;top:-24px;left:var(--x);width:var(--s);height:var(--s);opacity:0;
+    animation:fall var(--dur) ease-in var(--d) forwards;}
+  @keyframes fall{0%{opacity:0;transform:translate(0,0) rotate(0)}12%{opacity:.85}85%{opacity:.7}
+    100%{opacity:0;transform:translate(var(--drift),105vh) rotate(var(--rot))}}
+  .breath.winter i{border-radius:50%;background:#c9cfda;box-shadow:0 0 3px #b4bccb;}                /* 雪 Schnee */
+  .breath.spring i{border-radius:100% 0 100% 0;background:#e6bcc0;}                                 /* 花 Blütenblätter */
+  .breath.autumn i{border-radius:0 100% 0 100%;background:var(--tag);}                              /* 葉 Blätter */
+  .breath.autumn i:nth-child(3n){background:#9b5a35;}
+  .breath.summer i{top:auto;bottom:-12px;border-radius:50%;background:#c8cf55;                       /* 蛍 Glühwürmchen */
+    box-shadow:0 0 6px 3px rgba(200,207,85,.55);animation:rise var(--dur) ease-out var(--d) forwards;}
+  @keyframes rise{0%{opacity:0;transform:translate(0,0)}20%{opacity:1}45%{opacity:.25}60%{opacity:1}
+    80%{opacity:.4}100%{opacity:0;transform:translate(var(--drift),-55vh)}}
+  @media (prefers-reduced-motion:reduce){
+    .brand.breathing .enso{animation:enso-still 3.2s ease forwards;}
+    @keyframes enso-still{0%{opacity:0;stroke-dashoffset:0}25%,75%{opacity:.8;stroke-dashoffset:0}100%{opacity:0;stroke-dashoffset:0}}
+  }
   .head-meta{font-size:11px;color:var(--fade);letter-spacing:.5px;font-family:var(--mono);}
   main{flex:1;padding:26px 22px 100px;overflow-y:auto;}
 
@@ -153,7 +185,11 @@
 <body>
 <div class="shell">
   <header>
-    <div class="brand"><span class="mark">続</span><span class="brand-text">Tsuzuki</span></div>
+    <button class="brand" id="brand" aria-label="Tsuzuki — ein Hauch der Jahreszeit">
+      <span class="mark">続<svg class="enso" viewBox="0 0 100 100" aria-hidden="true"><path pathLength="100"
+        d="M60 10 C82 14 95 34 91 57 C87 79 65 93 43 89 C21 85 7 66 11 44 C14 30 22 21 32 16"/></svg></span>
+      <span class="brand-text"><span class="bt-main">Tsuzuki</span><span class="bt-alt">Fortsetzung</span></span>
+    </button>
     <div class="head-meta" id="head-meta">—</div>
   </header>
   <main id="main"></main>
