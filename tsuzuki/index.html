@@ -29,7 +29,8 @@
   header{display:flex;justify-content:space-between;align-items:center;
     padding:18px 22px 10px;border-bottom:1px solid var(--paper-deep);}
   .brand{display:flex;align-items:baseline;gap:9px;background:none;border:none;padding:4px 0;margin:-4px 0;
-    color:inherit;font:inherit;cursor:pointer;text-align:left;}
+    color:inherit;font:inherit;cursor:pointer;text-align:left;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation;}
   .mark{font-size:22px;color:var(--ai);font-weight:600;font-family:var(--mincho);position:relative;}
   .brand-text{font-size:17px;letter-spacing:1.5px;font-weight:600;display:inline-grid;}
   .brand-text > span{grid-area:1/1;transition:opacity .7s ease;}
@@ -52,7 +53,20 @@
   @keyframes fall{0%{opacity:0;transform:translate(0,0) rotate(0)}12%{opacity:.85}85%{opacity:.7}
     100%{opacity:0;transform:translate(var(--drift),105vh) rotate(var(--rot))}}
   .breath.winter i{border-radius:50%;background:#c9cfda;box-shadow:0 0 3px #b4bccb;}                /* 雪 Schnee */
-  .breath.spring i{border-radius:100% 0 100% 0;background:#e6bcc0;}                                 /* 花 Blütenblätter */
+  /* 桜 Kirschblütenblätter: Tropfenform mit der Kerbe an der Spitze, drei Rosatöne;
+     sie trudeln (Wiegen + Wenden) statt gerade zu fallen */
+  .breath.spring i{height:calc(var(--s) * 1.2);background:#f1c6cf;
+    -webkit-mask:var(--petal) center/100% 100% no-repeat;mask:var(--petal) center/100% 100% no-repeat;
+    --petal:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24'%3E%3Cpath d='M10 4L13 0C18 3 20 9 18 15C16 20 12 24 10 24C8 24 4 20 2 15C0 9 2 3 7 0Z'/%3E%3C/svg%3E");
+    animation-name:petal;animation-timing-function:ease-in-out;}
+  .breath.spring i:nth-child(3n){background:#e7a5b4;}
+  .breath.spring i:nth-child(4n){background:#f8dde2;}
+  @keyframes petal{0%{opacity:0;transform:translate(0,0) rotate(0) scaleX(1)}
+    12%{opacity:.9}
+    30%{transform:translate(calc(var(--drift) * -.4),30vh) rotate(calc(var(--rot) * .3)) scaleX(.35)}
+    55%{transform:translate(calc(var(--drift) * .6),58vh) rotate(calc(var(--rot) * .6)) scaleX(1)}
+    80%{opacity:.75;transform:translate(calc(var(--drift) * .2),84vh) rotate(calc(var(--rot) * .85)) scaleX(.4)}
+    100%{opacity:0;transform:translate(var(--drift),105vh) rotate(var(--rot)) scaleX(1)}}
   .breath.autumn i{border-radius:0 100% 0 100%;background:var(--tag);}                              /* 葉 Blätter */
   .breath.autumn i:nth-child(3n){background:#9b5a35;}
   .breath.summer i{top:auto;bottom:-12px;border-radius:50%;background:#c8cf55;                       /* 蛍 Glühwürmchen */

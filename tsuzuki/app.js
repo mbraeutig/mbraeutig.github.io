@@ -606,10 +606,9 @@ function renderNav() {
 const BREATH_MS = 6500;
 const brandEl = document.getElementById('brand');
 let breathing = false;
-function seasonBreath() {
+function seasonBreath(season = seasonOf(todayKey())) {
   if (breathing) return;
   breathing = true;
-  const season = seasonOf(todayKey());
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const layer = document.createElement('div');
   layer.className = `breath ${season}`;
@@ -633,7 +632,23 @@ function seasonBreath() {
   setTimeout(() => brandEl.classList.remove('meaning'), 3200);
   setTimeout(() => { layer.remove(); brandEl.classList.remove('breathing'); breathing = false; }, BREATH_MS);
 }
-brandEl.addEventListener('click', seasonBreath);
+// Langes Drücken (oder Shift+Tipp/Enter): Kirschblüten 桜 zu jeder Jahreszeit.
+const HOLD_MS = 600;
+let holdTimer = null, held = false;
+brandEl.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  held = false;
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => { held = true; seasonBreath('spring'); }, HOLD_MS);
+});
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+  brandEl.addEventListener(ev, () => clearTimeout(holdTimer));
+}
+brandEl.addEventListener('contextmenu', e => e.preventDefault());   // kein Kontextmenü beim Halten
+brandEl.addEventListener('click', e => {
+  if (held) { held = false; if (e.detail) return; }   // das Loslassen nach dem Halten ist kein Tipp
+  seasonBreath(e.shiftKey ? 'spring' : undefined);
+});
 
 // Tokens im Text sind <span role="button"> — Enter/Leertaste wie ein Klick.
 main.addEventListener('keydown', e => {
