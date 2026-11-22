@@ -4,6 +4,11 @@
 // ───────────────────────────────────────────────────────────────
 'use strict';
 
+// Kernlogik (Tokens, Datum, Markdown-Format) liegt in core.js — DOM-frei und getestet.
+const {
+  todayKey, addDays, tokenize, extractTokens, entryHasToken, esc, buildMarkdown, parseMarkdown,
+} = TsuzukiCore;
+
 const STORE = 'tsuzuki.entries.v1';
 const DRAFTS = 'tsuzuki.drafts.v1';   // ungespeicherte Entwürfe — überleben App-Neustart
 const AI = '#3a4a6b', TAG = '#8a6d3b';
@@ -19,10 +24,6 @@ const EMPTY = [
   'Noch ist der Weg jung. Schreib, wann immer dir danach ist.',
   'Mit der Zeit füllt sich dieser Raum mit Vergangenem.',
 ];
-
-const PERSON_RE = /@([A-Za-zÀ-ÿ0-9_]+)/g;
-const TAG_RE = /#([A-Za-zÀ-ÿ0-9_]+)/g;
-const TOKEN_SPLIT = /(@[A-Za-zÀ-ÿ0-9_]+|#[A-Za-zÀ-ÿ0-9_]+)/g;
 
 // ── State ─────────────────────────────────────────────────────
 let entries = load(STORE);
@@ -64,17 +65,7 @@ function requestPersist() {
   navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
 }
 
-// ── Date helpers ──────────────────────────────────────────────
-function todayKey(d = new Date()) {
-  return d.getFullYear() + '-' +
-    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getDate()).padStart(2, '0');
-}
-function addDays(key, n) {
-  const [y, m, d] = key.split('-').map(Number);
-  const dt = new Date(y, m - 1, d + n);
-  return todayKey(dt);
-}
+// ── Date display ──────────────────────────────────────────────
 function humanDate(key) {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('de-DE',
@@ -90,23 +81,12 @@ function relativeDay(key) {
   return humanDate(key);
 }
 
-// ── Token extraction ──────────────────────────────────────────
-function extractTokens(text) {
-  const people = new Set(), tags = new Set();
-  let m;
-  PERSON_RE.lastIndex = 0; while ((m = PERSON_RE.exec(text))) people.add(m[1]);
-  TAG_RE.lastIndex = 0;    while ((m = TAG_RE.exec(text))) tags.add(m[1]);
-  return { people: [...people], tags: [...tags] };
-}
-function esc(s) {
-  return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
+// ── Tokens im Text ────────────────────────────────────────────
 function richText(text) {
-  return text.split(TOKEN_SPLIT).map(p => {
-    if (!p) return '';
-    if (p[0] === '@') return `<span class="tok person" data-kind="@" data-name="${esc(p.slice(1))}">${esc(p)}</span>`;
-    if (p[0] === '#') return `<span class="tok tag" data-kind="#" data-name="${esc(p.slice(1))}">${esc(p)}</span>`;
-    return esc(p);
+  return tokenize(text).map(p => {
+    if (p.type === 'text') return esc(p.value);
+    const cls = p.type === '@' ? 'person' : 'tag';
+    return `<span class="tok ${cls}" data-kind="${p.type}" data-name="${esc(p.value)}">${esc(p.type + p.value)}</span>`;
   }).join('');
 }
 
@@ -139,9 +119,9 @@ function reflectSections() {
 }
 function filteredEntries() {
   if (!filter) return [];
-  const needle = filter.kind + filter.name.toLowerCase();
+  // Exakt wie in der Übersicht gezählt — @Franz trifft nicht @Franzi.
   return Object.keys(entries)
-    .filter(k => entries[k].text.toLowerCase().includes(needle))
+    .filter(k => entryHasToken(entries[k].text, filter.kind, filter.name))
     .sort().reverse()
     .map(k => Object.assign({ key: k }, entries[k]));
 }
@@ -184,15 +164,8 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // ── Export / Import ───────────────────────────────────────────
 async function exportMarkdown() {
-  const keys = Object.keys(entries).sort();
-  if (!keys.length) { toast('Noch nichts zu exportieren'); return; }
-  const files = keys.map(k => {
-    const e = entries[k], t = extractTokens(e.text);
-    const people = t.people.length ? `people: [${t.people.join(', ')}]\n` : '';
-    const tags = t.tags.length ? `tags: [${t.tags.join(', ')}]\n` : '';
-    return `## ${k}\n\n---\ndate: ${k}\nsource: tsuzuki\n${people}${tags}---\n\n${e.text}\n`;
-  });
-  const md = `# Tsuzuki 続き — Journal-Export\n\n> ${keys.length} Einträge · exportiert ${todayKey()}\n\n---\n\n` + files.join('\n---\n\n');
+  if (!Object.keys(entries).length) { toast('Noch nichts zu exportieren'); return; }
+  const md = buildMarkdown(entries, todayKey());
   const name = `tsuzuki-${todayKey()}.md`;
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
 
@@ -214,25 +187,21 @@ async function exportMarkdown() {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   toast('Export erstellt');
 }
-function importMarkdown(text) {
-  // Erkennt Blöcke "## YYYY-MM-DD" gefolgt vom Eintragstext.
-  // Frontmatter (--- ... ---) wird übersprungen, der Rest ist der Eintrag.
-  const blocks = text.split(/\n##\s+/).slice(1); // erster Teil ist die Kopfzeile
-  let added = 0, skipped = 0;
-  blocks.forEach(block => {
-    const dateMatch = block.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (!dateMatch) return;
-    const key = dateMatch[1];
-    let body = block.slice(dateMatch[0].length);
-    body = body.replace(/^\s*---[\s\S]*?---\s*/, '');        // Frontmatter weg
-    body = body.replace(/\n---\s*$/, '').trim();             // Trenner weg
-    if (!body) return;
-    if (entries[key]) { skipped++; return; }                 // bestehende nie überschreiben
-    entries[key] = { text: body, edited: Date.now() };
+function importMarkdown(md) {
+  const { entries: found, invalid, duplicate } = parseMarkdown(md);
+  if (!found.length) { toast('Keine Einträge in der Datei gefunden'); return; }
+  let added = 0, existing = 0;
+  found.forEach(({ key, text }) => {
+    if (entries[key]) { existing++; return; }               // bestehende nie überschreiben
+    entries[key] = { text, edited: Date.now() };
     added++;
   });
-  save();
-  toast(`${added} importiert${skipped ? `, ${skipped} übersprungen` : ''}`);
+  if (added) save();
+  const parts = [`${added} importiert`];
+  if (existing) parts.push(`${existing} schon vorhanden`);
+  if (duplicate) parts.push(`${duplicate} doppelt`);
+  if (invalid) parts.push(`${invalid} mit ungültigem Datum`);
+  toast(parts.join(' · '));
   view = 'reflect'; render();
 }
 
@@ -257,7 +226,8 @@ function toast(msg, actionLabel, action) {
   toastEl.classList.toggle('has-action', !!actionLabel);
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, actionLabel ? 5000 : 1600);
+  // Längere Meldungen (z. B. Import-Bilanz) bleiben etwas länger stehen.
+  toastTimer = setTimeout(hideToast, actionLabel ? 5000 : Math.max(1600, msg.length * 70));
 }
 
 function render() {
