@@ -11,15 +11,27 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Tsuzuki">
 <title>Tsuzuki 続き</title>
+<script>/* Farbschema vor dem ersten Zeichnen — dieselbe Regel wie applyTheme() in app.js */
+try{var t=localStorage.getItem('tsuzuki.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}</script>
 <style>
   :root{
     --ink:#1c1b1a; --paper:#f3efe6; --paper-deep:#ebe5d8; --card:#faf7f0;
     /* Kontrast ≥ 4,5:1 auf Papier und Karte (WCAG AA) — im Farbton der ursprünglichen Töne */
     --ai:#3a4a6b; --ai-soft:#5f6b84; --fade:#716c5f; --tag:#7d6336;
+    --body:#2e2c29; --chip-person:#e7ebf2; --chip-tag:#f0e9dc;
+    color-scheme:light;
     /* Nur Systemschriften (kein Netz). Noto-Namen: Rückfall für Android/Linux. */
     --serif:'Iowan Old Style','Palatino Linotype',Georgia,'Noto Serif',serif;
     --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Roboto Mono','Noto Sans Mono',monospace;
     --mincho:'Hiragino Mincho ProN','Yu Mincho','Noto Serif CJK JP','Noto Serif JP','Source Han Serif JP',serif;
+  }
+  /* Dunkel 墨 — warmes Tuschschwarz statt Neon-Schwarz; dieselben Rollen, Kontrast ebenfalls ≥ 4,5:1.
+     data-theme setzt das Skript im <head> bzw. applyTheme() (Automatisch folgt dem System). */
+  :root[data-theme=dark]{
+    --ink:#e6e0d4; --paper:#1a1917; --paper-deep:#302d28; --card:#22201d;
+    --ai:#9fb1d6; --ai-soft:#959fb5; --fade:#9c968a; --tag:#c9a467;
+    --body:#d9d3c6; --chip-person:#262d3d; --chip-tag:#332b1e;
+    color-scheme:dark;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--serif);}
@@ -78,6 +90,13 @@
     @keyframes enso-still{0%{opacity:0;stroke-dashoffset:0}25%,75%{opacity:.8;stroke-dashoffset:0}100%{opacity:0;stroke-dashoffset:0}}
   }
   .head-meta{font-size:11px;color:var(--fade);letter-spacing:.5px;font-family:var(--mono);}
+  .head-right{display:flex;align-items:center;gap:6px;}
+  /* Hilfe: leiser Kreis, 44×44-px-Tippfläche, optisch klein */
+  .help-btn{background:none;border:none;cursor:pointer;min-width:44px;min-height:44px;margin:-12px -12px -12px 0;
+    padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ai-soft);}
+  .help-btn span{width:22px;height:22px;border:1px solid currentColor;border-radius:50%;font-size:12.5px;
+    display:inline-flex;align-items:center;justify-content:center;font-family:var(--serif);}
+  .help-btn[aria-pressed=true]{color:var(--ink);}
   main{flex:1;padding:26px 22px 100px;overflow-y:auto;}
 
   .fade-in{animation:fade .5s ease both;}
@@ -104,8 +123,8 @@
   .chip-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
   .chip-row:empty{display:none;}
   .chip{font-size:13px;padding:3px 9px;border-radius:2px;font-family:var(--mono);}
-  .chip.person{color:var(--ai);background:#e7ebf2;}
-  .chip.tag{color:var(--tag);background:#f0e9dc;}
+  .chip.person{color:var(--ai);background:var(--chip-person);}
+  .chip.tag{color:var(--tag);background:var(--chip-tag);}
   .write-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;
     padding-top:16px;border-top:1px solid var(--paper-deep);}
   .word-count{font-size:12px;color:var(--fade);font-family:var(--mono);}
@@ -122,8 +141,8 @@
   .token-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
   .tok-btn{font-size:13.5px;border:none;padding:5px 11px;border-radius:2px;cursor:pointer;
     font-family:var(--mono);display:inline-flex;align-items:center;gap:6px;}
-  .tok-btn.person{color:var(--ai);background:#e7ebf2;}
-  .tok-btn.tag{color:var(--tag);background:#f0e9dc;}
+  .tok-btn.person{color:var(--ai);background:var(--chip-person);}
+  .tok-btn.tag{color:var(--tag);background:var(--chip-tag);}
   .tok-btn.draft{color:var(--ink);background:var(--paper-deep);}
   .tok-more{font-size:12.5px;border:1px solid var(--paper-deep);background:none;color:var(--ai-soft);
     padding:4px 10px;border-radius:2px;cursor:pointer;font-family:var(--mono);}
@@ -134,7 +153,7 @@
   .card-label{font-size:13px;letter-spacing:1px;font-weight:600;}
   .card-label.accent{color:var(--ai);}
   .card-sub{font-size:11px;color:var(--fade);font-family:var(--mono);}
-  .card-body{font-size:16px;line-height:1.65;color:#2e2c29;white-space:pre-wrap;margin:0;}
+  .card-body{font-size:16px;line-height:1.65;color:var(--body);white-space:pre-wrap;margin:0;}
   /* Innenabstand vergrößert die Tippfläche; negativer Rand verhindert, dass der Text verrutscht */
   .tok{cursor:pointer;font-weight:600;padding:6px 3px;margin:0 -3px;border-radius:2px;}
   .tok.person,.c-person{color:var(--ai);}
@@ -151,7 +170,7 @@
   .card-date{background:none;border:none;cursor:pointer;padding:8px 0;margin:-8px 0;}
   /* Zeitraum-Karten (Woche/Monat/Jahr) und Zeitraum-Liste */
   .wk-lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
-  .wk-lines li{display:flex;gap:10px;align-items:baseline;font-size:15px;line-height:1.5;color:#2e2c29;min-width:0;}
+  .wk-lines li{display:flex;gap:10px;align-items:baseline;font-size:15px;line-height:1.5;color:var(--body);min-width:0;}
   .wk-day{font-family:var(--mono);font-size:11px;color:var(--fade);width:22px;flex-shrink:0;}
   .wk-line{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
   .wk-tokens{margin:14px 0 0;}
@@ -162,6 +181,18 @@
   .cta-write{background:none;border:1px solid var(--paper-deep);border-radius:3px;padding:14px;
     width:100%;color:var(--ai);font-size:15px;font-family:var(--serif);cursor:pointer;font-style:italic;}
 
+  /* Hilfe */
+  .help h2{font-size:18px;font-weight:600;margin:0;letter-spacing:.5px;}
+  .help-sec{display:flex;gap:14px;align-items:flex-start;}
+  .help-glyph{font-family:var(--mincho);font-size:19px;color:var(--ai);width:24px;flex-shrink:0;text-align:center;line-height:1.3;}
+  .help-sec h3{font-size:14px;font-weight:600;letter-spacing:.5px;margin:0 0 4px;}
+  .help-sec p{font-size:15px;line-height:1.6;color:var(--body);margin:0;}
+  .theme-pick{display:flex;border:1px solid var(--paper-deep);border-radius:3px;margin-top:10px;}
+  .theme-pick button{flex:1;background:none;border:none;min-height:44px;cursor:pointer;color:var(--ai-soft);
+    font-family:var(--serif);font-size:14px;}
+  .theme-pick button + button{border-left:1px solid var(--paper-deep);}
+  .theme-pick button[aria-pressed=true]{background:var(--ink);color:var(--paper);}
+  .help-note{font-size:13px;line-height:1.6;color:var(--fade);font-style:italic;text-align:center;margin:10px 0 0;}
   .empty{text-align:center;padding:60px 20px;}
   .empty-mark{font-size:46px;color:var(--paper-deep);margin-bottom:18px;font-family:var(--mincho);}
   .empty-text{font-size:15px;line-height:1.6;color:var(--fade);font-style:italic;}
@@ -204,7 +235,10 @@
         d="M60 10 C82 14 95 34 91 57 C87 79 65 93 43 89 C21 85 7 66 11 44 C14 30 22 21 32 16"/></svg></span>
       <span class="brand-text"><span class="bt-main">Tsuzuki</span><span class="bt-alt">Fortsetzung</span></span>
     </button>
-    <div class="head-meta" id="head-meta">—</div>
+    <div class="head-right">
+      <div class="head-meta" id="head-meta">—</div>
+      <button class="help-btn" id="help-btn" aria-label="Hilfe und Darstellung" aria-pressed="false"><span>?</span></button>
+    </div>
   </header>
   <main id="main"></main>
   <nav id="nav"></nav>

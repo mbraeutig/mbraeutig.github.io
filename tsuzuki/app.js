@@ -303,6 +303,36 @@ const nav = document.getElementById('nav');
 const headMeta = document.getElementById('head-meta');
 const toastEl = document.getElementById('toast');
 const importInput = document.getElementById('import-input');
+const helpBtn = document.getElementById('help-btn');
+
+// ── Darstellung: Automatisch (System) · Hell · Dunkel ─────────
+// Gespeichert nur auf diesem Gerät, nicht im Export. Das Skript im <head>
+// setzt dieselbe Regel schon vor dem ersten Zeichnen (kein Aufblitzen).
+const THEME = 'tsuzuki.theme';
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+let themeSet = null;   // in dieser Sitzung gewählt — trägt auch, wenn localStorage nicht schreibbar ist
+function themeChoice() {
+  if (themeSet) return themeSet;
+  try { const t = localStorage.getItem(THEME); return t === 'light' || t === 'dark' ? t : 'auto'; }
+  catch { return 'auto'; }
+}
+function applyTheme() {
+  const c = themeChoice();
+  const theme = c === 'auto' ? (darkQuery.matches ? 'dark' : 'light') : c;
+  document.documentElement.dataset.theme = theme;
+  // Statusleiste/Browserrahmen im Papierton — Farbe aus dem CSS, nicht doppelt hier.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+  if (meta && paper) meta.setAttribute('content', paper);
+}
+function setTheme(choice) {
+  themeSet = choice;
+  try { if (choice === 'auto') localStorage.removeItem(THEME); else localStorage.setItem(THEME, choice); }
+  catch { /* nicht schreibbar (privates Fenster o. Ä.): gilt dann nur für diese Sitzung */ }
+  applyTheme();
+}
+applyTheme();
+if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
 
 let toastTimer;
 function hideToast() { toastEl.classList.remove('show', 'has-action'); }
@@ -331,6 +361,8 @@ function render() {
   if (view === 'write') renderWrite();
   else if (view === 'reflect') renderReflect();
   else if (view === 'filter') renderFilter();
+  else if (view === 'help') renderHelp();
+  helpBtn.setAttribute('aria-pressed', String(view === 'help'));
   renderNav();
 }
 
@@ -583,6 +615,61 @@ function renderFilter() {
   });
   bindPeriodLinks();
 }
+
+// ── Hilfe (?) — kurz, ruhig, mit der Darstellungs-Wahl ganz oben ──
+// Der Hauch der Jahreszeit (Tipp auf „Tsuzuki“) bleibt bewusst ungenannt (4.9).
+let helpReturn = 'reflect';   // wohin „zurück“ führt
+function openHelp() {
+  if (view === 'help') { view = helpReturn; renderQuiet(); return; }
+  helpReturn = view;
+  view = 'help';
+  render();
+}
+const HELP = [
+  ['筆', 'Schreiben', 'Schreib einfach, was war — für heute, mit ‹ › auch für vergangene Tage. ' +
+    'Jeder Tastendruck ist sofort als Entwurf gesichert; „Festhalten“ macht ihn zum Eintrag. ' +
+    'Ein leer festgehaltener Tag wird entfernt (mit „Rückgängig“).'],
+  ['@', 'Menschen und Themen', '<span class="c-person">@Namen</span> und <span class="c-tag">#Themen</span> ' +
+    'erkennt Tsuzuki von selbst, ganz ohne Verwaltung. Ein Tipp darauf zeigt alle Einträge dazu. ' +
+    'Groß- und Kleinschreibung zählt: @Franzi und @franzi sind zwei.'],
+  ['省', 'Zurückblicken', 'Hier kommt Vergangenes zurück: der letzte Eintrag, was vor einem Jahr ' +
+    '(oder um diese Zeit) war, und ein zufälliger Erinnerungsweg. Sonntags und montags die Woche, ' +
+    'zu Monats- und Jahresbeginn der vergangene Monat und das Jahr.'],
+  ['続', 'Weiterschreiben', '„weiterschreiben ›“ unter „Zuletzt“ oder einer Jahres-Karte öffnet den heutigen Eintrag ' +
+    'mit einem Verweis ↩ auf damals. So wachsen Fäden über die Zeit; ein Tipp auf ↩ zeigt den ganzen Faden.'],
+  ['候', 'Mikro-Jahreszeiten', 'Unter dem Datum steht leise eine der 72 alten japanischen ' +
+    'Jahreszeiten, jede etwa fünf Tage lang.'],
+  ['出', 'Export und Import', 'Deine Einträge bleiben nur auf diesem Gerät, in diesem Browser. ' +
+    'Export sichert alles als eine Markdown-Datei; Import liest sie wieder ein und überschreibt nie ' +
+    'einen vorhandenen Tag. Ab und zu exportieren schützt vor Verlust.'],
+];
+function renderHelp() {
+  const c = themeChoice();
+  const opt = (val, label) => `<button data-theme-pick="${val}" aria-pressed="${c === val}">${label}</button>`;
+  main.className = 'fade-in';
+  main.innerHTML = `<div class="stack help">
+    <button class="back-btn" id="back">‹ zurück</button>
+    <h2>Hilfe</h2>
+    <div class="help-sec"><span class="help-glyph" aria-hidden="true">墨</span><div>
+      <h3 id="theme-label">Darstellung</h3>
+      <p>Hell wie Washi-Papier oder dunkel wie Tusche. „Automatisch“ folgt der Einstellung des Geräts.</p>
+      <div class="theme-pick" role="group" aria-labelledby="theme-label">
+        ${opt('auto', 'Automatisch')}${opt('light', 'Hell')}${opt('dark', 'Dunkel')}
+      </div>
+    </div></div>
+    ${HELP.map(([g, h, p]) => `<div class="help-sec"><span class="help-glyph" aria-hidden="true">${g}</span>` +
+      `<div><h3>${h}</h3><p>${p}</p></div></div>`).join('')}
+    <p class="help-note">Kein Streak, kein Zwang. Manches zeigt sich erst, wenn man es antippt.</p>
+  </div>`;
+  document.getElementById('back').onclick = () => { view = helpReturn; renderQuiet(); };
+  main.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => {
+    setTheme(b.dataset.themePick);
+    main.querySelectorAll('[data-theme-pick]').forEach(o =>
+      o.setAttribute('aria-pressed', String(o === b)));
+  });
+}
+
+helpBtn.addEventListener('click', openHelp);
 
 function renderNav() {
   const w = view === 'write', r = view === 'reflect' || view === 'filter';
