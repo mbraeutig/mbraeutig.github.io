@@ -239,6 +239,18 @@ function continueFrom(key) {
   setDraft(tk, appendRef(currentText(tk), key));
   openWrite(tk, CONTINUE_GREETING);
 }
+// Ein Tipp auf den Text einer Karte öffnet diesen Tag im Schreiben — dort
+// lässt er sich ändern oder (leer festgehalten) entfernen. Tokens und ↩ im
+// Text behalten ihren eigenen Tipp; markierter Text (Kopieren) öffnet nichts.
+function bindCardBodies() {
+  main.querySelectorAll('.card[data-day] .card-body').forEach(el => {
+    el.onclick = e => {
+      if (e.target.closest('[role="button"], button')) return;
+      if (String(window.getSelection?.() || '')) return;
+      openWrite(el.closest('.card').dataset.day);
+    };
+  });
+}
 function openThread(key) { filter = { kind: 'thread', key }; view = 'filter'; render(); }
 function openToken(kind, name) { filter = { kind, name }; view = 'filter'; render(); }
 function openPeriod(p) { filter = { kind: 'period', unit: p.unit, from: p.from, to: p.to }; view = 'filter'; render(); }
@@ -464,6 +476,7 @@ function renderReflect() {
   main.querySelectorAll('[data-more]').forEach(el =>
     el.onclick = () => { tokensExpanded[el.dataset.more] = !tokensExpanded[el.dataset.more]; renderReflect(); });
   bindPeriodLinks();
+  bindCardBodies();
   document.getElementById('go-write').onclick = () => openWrite(todayKey());
 }
 
@@ -614,9 +627,10 @@ function renderFilter() {
     if (!el.disabled) el.onclick = () => openPeriod(shiftPeriod(filter, Number(el.dataset.shift)));
   });
   bindPeriodLinks();
+  bindCardBodies();
 }
 
-// ── Hilfe (?) — kurz, ruhig, mit der Darstellungs-Wahl ganz oben ──
+// ── Hilfe (?) — kurz, ruhig; oben Darstellung und Export/Import ──
 // Der Hauch der Jahreszeit (Tipp auf „Tsuzuki“) bleibt bewusst ungenannt (4.9).
 let helpReturn = 'reflect';   // wohin „zurück“ führt
 function openHelp() {
@@ -628,6 +642,7 @@ function openHelp() {
 const HELP = [
   ['筆', 'Schreiben', 'Schreib einfach, was war — für heute, mit ‹ › auch für vergangene Tage. ' +
     'Jeder Tastendruck ist sofort als Entwurf gesichert; „Festhalten“ macht ihn zum Eintrag. ' +
+    'Ein Tipp auf den Text einer Karte öffnet diesen Tag zum Ändern. ' +
     'Ein leer festgehaltener Tag wird entfernt (mit „Rückgängig“).'],
   ['@', 'Menschen und Themen', '<span class="c-person">@Namen</span> und <span class="c-tag">#Themen</span> ' +
     'erkennt Tsuzuki von selbst, ganz ohne Verwaltung. Ein Tipp darauf zeigt alle Einträge dazu. ' +
@@ -639,9 +654,6 @@ const HELP = [
     'mit einem Verweis ↩ auf damals. So wachsen Fäden über die Zeit; ein Tipp auf ↩ zeigt den ganzen Faden.'],
   ['候', 'Mikro-Jahreszeiten', 'Unter dem Datum steht leise eine der 72 alten japanischen ' +
     'Jahreszeiten, jede etwa fünf Tage lang.'],
-  ['出', 'Export und Import', 'Deine Einträge bleiben nur auf diesem Gerät, in diesem Browser. ' +
-    'Export sichert alles als eine Markdown-Datei; Import liest sie wieder ein und überschreibt nie ' +
-    'einen vorhandenen Tag. Ab und zu exportieren schützt vor Verlust.'],
 ];
 function renderHelp() {
   const c = themeChoice();
@@ -657,11 +669,22 @@ function renderHelp() {
         ${opt('auto', 'Automatisch')}${opt('light', 'Hell')}${opt('dark', 'Dunkel')}
       </div>
     </div></div>
+    <div class="help-sec"><span class="help-glyph" aria-hidden="true">出</span><div>
+      <h3>Export und Import</h3>
+      <p>Deine Einträge bleiben nur auf diesem Gerät, in diesem Browser. Export sichert alles als eine
+        Markdown-Datei; Import liest sie wieder ein und überschreibt nie einen vorhandenen Tag.
+        Ab und zu exportieren schützt vor Verlust.</p>
+      <div class="data-pick">
+        <button id="do-export">出 Export</button><button id="do-import">入 Import</button>
+      </div>
+    </div></div>
     ${HELP.map(([g, h, p]) => `<div class="help-sec"><span class="help-glyph" aria-hidden="true">${g}</span>` +
       `<div><h3>${h}</h3><p>${p}</p></div></div>`).join('')}
     <p class="help-note">Kein Streak, kein Zwang. Manches zeigt sich erst, wenn man es antippt.</p>
   </div>`;
   document.getElementById('back').onclick = () => { view = helpReturn; renderQuiet(); };
+  document.getElementById('do-export').onclick = exportMarkdown;
+  document.getElementById('do-import').onclick = () => importInput.click();
   main.querySelectorAll('[data-theme-pick]').forEach(b => b.onclick = () => {
     setTheme(b.dataset.themePick);
     main.querySelectorAll('[data-theme-pick]').forEach(o =>
@@ -676,13 +699,9 @@ function renderNav() {
   nav.innerHTML = `
     <button class="nav-btn ${w ? 'active' : ''}" id="nav-write"><span class="nav-glyph">筆</span><span class="nav-label">Schreiben</span></button>
     <button class="nav-btn ${r ? 'active' : ''}" id="nav-reflect"><span class="nav-glyph">省</span><span class="nav-label">Zurückblicken</span></button>
-    <button class="nav-btn" id="nav-import"><span class="nav-glyph">入</span><span class="nav-label">Import</span></button>
-    <button class="nav-btn" id="nav-export"><span class="nav-glyph">出</span><span class="nav-label">Export</span></button>
   `;
   document.getElementById('nav-write').onclick = () => openWrite(todayKey());
   document.getElementById('nav-reflect').onclick = () => { view = 'reflect'; render(); };
-  document.getElementById('nav-export').onclick = exportMarkdown;
-  document.getElementById('nav-import').onclick = () => importInput.click();
 }
 
 // ── Ein Hauch der Jahreszeit (Tipp auf „Tsuzuki“) ─────────────
