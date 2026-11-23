@@ -19,6 +19,8 @@ try{var t=localStorage.getItem('tsuzuki.theme');if(t!=='light'&&t!=='dark')t=mat
     /* Kontrast ≥ 4,5:1 auf Papier und Karte (WCAG AA) — im Farbton der ursprünglichen Töne */
     --ai:#3a4a6b; --ai-soft:#5f6b84; --fade:#716c5f; --tag:#7d6336;
     --body:#2e2c29; --chip-person:#e7ebf2; --chip-tag:#f0e9dc;
+    /* 朱 Zinnober — einzig für das Siegel „Festhalten“, nirgends sonst */
+    --shu:#b4442c;
     color-scheme:light;
     /* Nur Systemschriften (kein Netz). Noto-Namen: Rückfall für Android/Linux. */
     --serif:'Iowan Old Style','Palatino Linotype',Georgia,'Noto Serif',serif;
@@ -31,6 +33,7 @@ try{var t=localStorage.getItem('tsuzuki.theme');if(t!=='light'&&t!=='dark')t=mat
     --ink:#e6e0d4; --paper:#1a1917; --paper-deep:#302d28; --card:#22201d;
     --ai:#9fb1d6; --ai-soft:#959fb5; --fade:#9c968a; --tag:#c9a467;
     --body:#d9d3c6; --chip-person:#262d3d; --chip-tag:#332b1e;
+    --shu:#d0644a;
     color-scheme:dark;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -128,8 +131,16 @@ try{var t=localStorage.getItem('tsuzuki.theme');if(t!=='light'&&t!=='dark')t=mat
   .write-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;
     padding-top:16px;border-top:1px solid var(--paper-deep);}
   .word-count{font-size:12px;color:var(--fade);font-family:var(--mono);}
-  .save-btn{background:var(--ink);color:var(--paper);border:none;border-radius:2px;padding:11px 22px;
-    font-size:14px;letter-spacing:.5px;cursor:pointer;font-family:var(--serif);}
+  /* Festhalten als Siegel 留 (Hanko): Zinnober-Fläche, das Zeichen in Papierfarbe —
+     wie Papier, das durch den Stempel scheint. Daneben leise, kursiv, wie die übrigen Aktionen. */
+  .save-btn{background:none;border:none;display:inline-flex;align-items:center;gap:10px;min-height:44px;
+    padding:0 2px;margin:-7px 0;cursor:pointer;color:var(--ai);font-family:var(--serif);font-style:italic;font-size:15.5px;}
+  .seal{font-family:var(--mincho);font-style:normal;font-size:17px;width:30px;height:30px;border-radius:3px;
+    display:inline-flex;align-items:center;justify-content:center;background:var(--shu);color:var(--paper);}
+  /* Beim Festhalten wird das Siegel kurz aufgedrückt */
+  .seal.stamp{animation:stamp .55s cubic-bezier(.3,1.4,.5,1) both;}
+  @keyframes stamp{0%{transform:scale(1.35) rotate(-6deg);opacity:.35}55%{transform:scale(.92) rotate(1deg);opacity:1}100%{transform:none}}
+  @media (prefers-reduced-motion:reduce){.seal.stamp{animation:none;}}
   .wabi{margin-top:30px;font-size:13px;line-height:1.6;color:var(--fade);font-style:italic;
     text-align:center;max-width:300px;margin-left:auto;margin-right:auto;}
 

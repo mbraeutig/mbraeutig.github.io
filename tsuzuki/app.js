@@ -217,6 +217,8 @@ function holdFast() {
     });
   }
   renderQuiet();
+  // Das Siegel wird aufgedrückt — erst nach dem Neuzeichnen, am neuen Knopf.
+  if (text) main.querySelector('.seal')?.classList.add('stamp');
 }
 // Neu zeichnen, ohne das Textfeld zu fokussieren — nach dem Festhalten soll
 // am Handy nicht die Tastatur wieder aufspringen.
@@ -397,7 +399,7 @@ function renderWrite() {
     <div class="chip-row" id="chips"></div>
     <div class="write-foot">
       <span class="word-count" id="word-count"></span>
-      <button class="save-btn" id="save">Festhalten</button>
+      <button class="save-btn" id="save"><span class="seal" aria-hidden="true">留</span>Festhalten</button>
     </div>
     <p class="wabi">Schreib einfach. <span class="c-person">@Namen</span> und <span class="c-tag">#Themen</span> erkennt Tsuzuki von selbst.</p>
   `;
