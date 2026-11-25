@@ -276,15 +276,20 @@
     }
     return idx;
   }
-  // Der ganze Faden um key: alle Tage, die in beide Richtungen über Verweise
-  // verbunden sind — nur vorhandene Einträge, chronologisch.
+  // Der Faden um key: woher es kommt (nur Verweise, nach oben) und wie es
+  // weiterging (nur Rückverweise, nach unten) — getrennt gesucht, damit ein Tag,
+  // der zwei Fäden fortsetzt, sie nicht verschmilzt (Job ↩ und Oma ↩ am selben
+  // Tag bleiben zwei Fäden). Nur vorhandene Einträge, chronologisch.
   function threadKeys(texts, key) {
     const back = backlinkIndex(texts);
-    const seen = new Set([key]), queue = [key];
-    while (queue.length) {
-      const k = queue.shift();
-      const next = [...(back[k] || []), ...(texts[k] !== undefined ? extractTokens(texts[k]).refs : [])];
-      for (const n of next) if (!seen.has(n)) { seen.add(n); queue.push(n); }
+    const up = k => (texts[k] !== undefined ? extractTokens(texts[k]).refs : []);
+    const down = k => back[k] || [];
+    const seen = new Set([key]);
+    for (const step of [up, down]) {
+      const queue = [key];
+      while (queue.length) {
+        for (const n of step(queue.shift())) if (!seen.has(n)) { seen.add(n); queue.push(n); }
+      }
     }
     return [...seen].filter(k => texts[k] !== undefined).sort();
   }
